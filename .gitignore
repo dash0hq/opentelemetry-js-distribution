@@ -1,0 +1,5 @@
+dist/
+node_modules/
+npm-debug*
+.nyc_output/
+dash0hq-opentelemetry-*.tgz

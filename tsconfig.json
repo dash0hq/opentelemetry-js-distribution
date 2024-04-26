@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "noImplicitOverride": true,
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": ["./src/**/*", "./src/**/*.json", "./package.json"],
+  "exclude": ["**/*.test.js", "**/*.test.ts"]
+}
