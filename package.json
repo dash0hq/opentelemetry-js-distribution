@@ -1,0 +1,77 @@
+{
+  "name": "@dash0/opentelemetry",
+  "version": "1.0.0",
+  "description": "Dash0 OpenTelemetry Wrapper for Node.js",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc --build --force && cp LICENSE dist",
+    "verify": "npm run lint && npm test",
+    "lint": "npm run eslint && npm run prettier-check",
+    "eslint": "eslint eslint.config.js src test",
+    "prettier": "prettier --write eslint.config.js .mocharc.js 'src/**/*.[jt]s' 'test/**/*.[jt]s' --parser typescript",
+    "prettier-check": "prettier --check eslint.config.js 'src/**/*.[jt]s' 'test/**/*.[jt]s' --parser typescript",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "mocha --config test/.mocharc.unit.js --require ts-node/register",
+    "test:integration": "mocha --config test/.mocharc.integration.js --require ts-node/register --require test/integration/rootHooks.ts",
+    "test:coverage": "nyc npm run test",
+    "start-collector": "node --require ts-node/register test/collector/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dash0hq/opentelemetry-js-distro.git"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Bastian Krol",
+    "email": "bastian.krol@dash0.com"
+  },
+  "contributors": [],
+  "keywords": [
+    "OpenTelemetry",
+    "OTel",
+    "Dash0",
+    "observability",
+    "APM",
+    "monitoring",
+    "performance",
+    "tracing"
+  ],
+  "bugs": {
+    "url": "https://github.com/dash0hq/opentelemetry-js-distro/issues"
+  },
+  "homepage": "https://github.com/dash0hq/opentelemetry-js-distro#readme",
+  "dependencies": {
+    "@opentelemetry/api": "^1.8.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.44.0",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.51.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.51.0",
+    "@opentelemetry/sdk-metrics": "^1.24.0",
+    "@opentelemetry/sdk-node": "^0.51.0",
+    "@opentelemetry/sdk-trace-node": "^1.24.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.1.1",
+    "@grpc/grpc-js": "^1.10.6",
+    "@types/chai": "^4.3.14",
+    "@types/is-ci": "^3.0.4",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.12.7",
+    "@types/sinon": "^17.0.3",
+    "chai": "^4.4.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-header": "^3.1.1",
+    "eslint-plugin-mocha": "^10.4.3",
+    "eslint-plugin-simple-import-sort": "^12.1.0",
+    "eslint-plugin-unused-imports": "^3.2.0",
+    "is-ci": "^3.0.1",
+    "mocha": "^10.4.0",
+    "nyc": "^15.1.0",
+    "prettier": "^3.2.5",
+    "protobufjs": "^7.2.6",
+    "sinon": "^17.0.1",
+    "ts-node": "^10.9.2",
+    "ts-proto": "^1.172.0",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.7.1"
+  }
+}
