@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { ChildProcess, fork, ForkOptions } from 'node:child_process';
 import EventEmitter from 'node:events';
 import waitUntil, { RetryOptions } from '../util/waitUntil';
@@ -15,6 +17,10 @@ export interface ChildProcessWrapperOptions {
   env?: { [key: string]: string };
   waitForReadyRetryOptions?: RetryOptions;
 }
+
+const repoRoot = path.join(__dirname, '..', '..');
+const distroPath = path.join(repoRoot, 'src');
+const emulateKubernetesPath = path.join(repoRoot, 'test', 'integration', 'emulateKubernetes');
 
 export default class ChildProcessWrapper {
   private childProcess?: ChildProcess;
@@ -34,30 +40,45 @@ export default class ChildProcessWrapper {
   }
 
   async start() {
-    const forkOptions = this.createForkOptions();
-    this.childProcess = fork(this.options.path, this.options.args ?? [], forkOptions);
+    const { modulePath, forkOptions } = await this.createForkOptions();
+    this.childProcess = fork(modulePath, this.options.args ?? [], forkOptions);
     this.listenToIpcMessages();
     this.echoOutputStreams();
     await this.waitUntilReady();
   }
 
-  private createForkOptions() {
+  private async createForkOptions(): Promise<{ modulePath: string; forkOptions: ForkOptions }> {
+    let cwd;
+    let modulePath;
+    const stat = await fs.stat(this.options.path);
+    if (stat.isDirectory()) {
+      // provided path is a directory, use that directory as working directory and do fork "node ."
+      cwd = path.resolve(repoRoot, this.options.path);
+      modulePath = '.';
+    } else {
+      // provided path is a file, use that file's parent directory as working directory and fork "node filename"
+      cwd = path.resolve(repoRoot, path.dirname(this.options.path));
+      modulePath = path.basename(this.options.path);
+    }
+
     const forkOptions: ForkOptions = {
+      cwd,
       stdio: ['inherit', 'pipe', 'pipe', 'ipc'],
     };
     if (this.options.useTsNode) {
       this.addExecArgvs(forkOptions, '--require', 'ts-node/register');
     }
     if (this.options.emulateKubernetesPodUid) {
-      this.addExecArgvs(forkOptions, '--require', './test/integration/emulateKubernetes');
+      // Note: Kubernetes file system stubbing needs to come before --require distroPath.
+      this.addExecArgvs(forkOptions, '--require', emulateKubernetesPath);
     }
     if (this.options.useDistro) {
-      this.addExecArgvs(forkOptions, '--require', './src');
+      this.addExecArgvs(forkOptions, '--require', distroPath);
     }
     if (this.options.env) {
       forkOptions.env = this.options.env;
     }
-    return forkOptions;
+    return { modulePath, forkOptions };
   }
 
   private addExecArgvs(forkOptions: ForkOptions, ...execArgvs: string[]) {
