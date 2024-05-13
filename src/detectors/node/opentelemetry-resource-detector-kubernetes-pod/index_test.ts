@@ -96,7 +96,7 @@ const procSelfMountInfoContentWithPodUid2 = `2317 1432 0:473 / / rw,relatime mas
 1456 2318 0:476 /null /proc/sched_debug rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755
 1457 2322 0:480 / /sys/firmware ro,relatime - tmpfs tmpfs ro`;
 
-describe('podUidDetector', () => {
+describe('pod ui detection', () => {
   const sandbox = sinon.createSandbox();
   let readFileStub: sinon.SinonStub;
   let podUidDetector: PodUidDetector;

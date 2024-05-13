@@ -10,6 +10,7 @@ import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 
 import { version } from '../package.json';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
+import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { getResourceDetectorsFromEnv } from './util/sdkUtil';
 
 if (process.env.DASH0_DEBUG) {
@@ -57,6 +58,7 @@ if (process.env.OTEL_NODE_RESOURCE_DETECTORS != null) {
   detectors = [envDetector, processDetector, hostDetector];
 }
 detectors.push(new PodUidDetector());
+detectors.push(new ServiceNameFallbackDetector());
 configuration.resourceDetectors = detectors;
 
 const sdk = new NodeSDK(configuration);
