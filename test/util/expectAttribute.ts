@@ -6,6 +6,8 @@ import { KeyValue } from '../collector/types/opentelemetry/proto/common/v1/commo
 import { Resource } from '../collector/types/opentelemetry/proto/resource/v1/resource';
 import { Span } from '../collector/types/opentelemetry/proto/trace/v1/trace';
 
+const { fail } = expect;
+
 interface WithAttributes {
   attributes: KeyValue[];
 }
@@ -24,10 +26,11 @@ export function expectAttribute(object: WithAttributes, key: string, expectedVal
       found = true;
     }
   });
-  expect(found).to.equal(
-    true,
-    `Expected ${label} to have attribute ${key} with value ${expectedValue}, but no such attribute exists on the ${label}.`,
-  );
+  if (!found) {
+    fail(
+      `Expected ${label} to have attribute ${key} with value ${expectedValue}, but no such attribute exists on the ${label}.`,
+    );
+  }
 }
 
 export function expectResourceAttribute(resource: Resource, key: string, expectedValue: any) {

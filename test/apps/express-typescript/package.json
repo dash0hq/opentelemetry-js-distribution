@@ -4,7 +4,6 @@
   "description": "",
   "main": "app.ts",
   "scripts": {
-    "start-instrumented": "ts-node --require ../../../dist app.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bastian Krol <bastian.krol@dash0.com>",
