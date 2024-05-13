@@ -33,7 +33,7 @@ describe('attach', () => {
       await appUnderTest.stop();
     });
 
-    it('should attach via --require and collect capture spans', async () => {
+    it('should attach via --require and capture spans', async () => {
       await waitUntil(async () => {
         const telemetry = await waitForTelemetry();
         expectMatchingSpan(
@@ -73,6 +73,37 @@ describe('attach', () => {
         expectMatchingSpan(
           telemetry.traces,
           [resource => expectResourceAttribute(resource, 'k8s.pod.uid', 'f57400dc-94ce-4806-a52e-d2726f448f15')],
+          [
+            span => expect(span.kind).to.equal(SpanKind.SERVER),
+            span => expectSpanAttribute(span, 'http.route', '/ohai'),
+          ],
+        );
+      });
+    });
+  });
+
+  describe('service name fallback', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    before(async () => {
+      const appConfiguration = defaultAppConfiguration();
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+      await appUnderTest.start();
+    });
+
+    after(async () => {
+      await appUnderTest.stop();
+    });
+
+    it('should attach via --require and derive a service name from the package.json file ', async () => {
+      await waitUntil(async () => {
+        const telemetry = await waitForTelemetry();
+        expectMatchingSpan(
+          telemetry.traces,
+          [
+            resource =>
+              expectResourceAttribute(resource, 'service.name', 'dash0-app-under-test-express-typescript@1.0.0'),
+          ],
           [
             span => expect(span.kind).to.equal(SpanKind.SERVER),
             span => expectSpanAttribute(span, 'http.route', '/ohai'),
