@@ -8,6 +8,8 @@
 module.exports = {
   extension: ['ts'],
   ignore: ['test/**/node_modules/**'],
+  // As long as we test the minimum version check with a Node.js version < 18.0.0, we need to enable fetch explicitly.
+  'node-option': ['experimental-fetch'],
   recursive: true,
   require: ['ts-node/register'],
   slow: 3000,

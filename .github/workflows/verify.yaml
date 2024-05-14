@@ -41,3 +41,33 @@ jobs:
       - name: test
         run: |
           npm test
+
+  verify-minimum-version-check:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ '16.x' ]
+
+    name: Verify Minimum Version Check (Node.js ${{ matrix.node-version }})
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: versions
+        run: |
+          node --version
+          npm --version
+
+      - run: npm ci
+
+      - name: integration test
+        run: |
+          npm run test:integration
