@@ -19,6 +19,11 @@ export default class CollectorChildProcessWrapper extends ChildProcessWrapper {
     return stats.traces >= 1;
   }
 
+  async hasTelemetry() {
+    const stats = await collector().fetchStats();
+    return stats.traces >= 1 || stats.metrics >= 1 || stats.logs >= 1;
+  }
+
   async fetchTelemetry() {
     return <OpenTelemetryData>await collector().sendRequest({ command: 'telemetry' });
   }
