@@ -158,3 +158,19 @@ export default class ChildProcessWrapper {
 }
 
 class ResponseEmitter extends EventEmitter {}
+
+export function defaultAppConfiguration(appPort: number): ChildProcessWrapperOptions {
+  return {
+    path: 'test/apps/express-typescript',
+    label: 'app',
+    useTsNode: true,
+    useDistro: true,
+    env: {
+      PORT: appPort.toString(),
+      // have the Node.js SDK send spans every 100 ms instead of every 5 seconcds to speed up tests
+      OTEL_BSP_SCHEDULE_DELAY: '100',
+      DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
+      // OTEL_LOG_LEVEL: 'VERBOSE',
+    },
+  };
+}

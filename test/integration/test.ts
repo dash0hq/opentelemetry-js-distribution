@@ -4,18 +4,27 @@
 import { SpanKind } from '@opentelemetry/api';
 import { expect } from 'chai';
 import { readFile } from 'node:fs/promises';
+import semver from 'semver';
+
 import { expectResourceAttribute, expectSpanAttribute } from '../util/expectAttribute';
 import { expectMatchingSpan } from '../util/expectMatchingSpan';
 import runCommand from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
-import ChildProcessWrapper, { ChildProcessWrapperOptions } from './ChildProcessWrapper';
+import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
+
+const skipWhenNodeJsVersionIsSmallerThan = '18.0.0';
 
 const appPort = 1302;
 let expectedDistroVersion: number;
 
 describe('attach', () => {
-  before(async () => {
+  before(async function () {
+    if (semver.lt(process.version, skipWhenNodeJsVersionIsSmallerThan)) {
+      this.skip();
+      return;
+    }
+
     await runCommand('npm ci', 'test/apps/express-typescript');
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
@@ -24,7 +33,7 @@ describe('attach', () => {
     let appUnderTest: ChildProcessWrapper;
 
     before(async () => {
-      const appConfiguration = defaultAppConfiguration();
+      const appConfiguration = defaultAppConfiguration(appPort);
       appUnderTest = new ChildProcessWrapper(appConfiguration);
       await appUnderTest.start();
     });
@@ -57,7 +66,7 @@ describe('attach', () => {
     let appUnderTest: ChildProcessWrapper;
 
     before(async () => {
-      const appConfiguration = defaultAppConfiguration();
+      const appConfiguration = defaultAppConfiguration(appPort);
       appConfiguration.emulateKubernetesPodUid = true;
       appUnderTest = new ChildProcessWrapper(appConfiguration);
       await appUnderTest.start();
@@ -86,7 +95,7 @@ describe('attach', () => {
     let appUnderTest: ChildProcessWrapper;
 
     before(async () => {
-      const appConfiguration = defaultAppConfiguration();
+      const appConfiguration = defaultAppConfiguration(appPort);
       appUnderTest = new ChildProcessWrapper(appConfiguration);
       await appUnderTest.start();
     });
@@ -112,22 +121,6 @@ describe('attach', () => {
       });
     });
   });
-
-  function defaultAppConfiguration(): ChildProcessWrapperOptions {
-    return {
-      path: 'test/apps/express-typescript',
-      label: 'app',
-      useTsNode: true,
-      useDistro: true,
-      env: {
-        PORT: appPort.toString(),
-        // have the Node.js SDK send spans every 100 ms instead of every 5 seconcds to speed up tests
-        OTEL_BSP_SCHEDULE_DELAY: '100',
-        DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
-        // OTEL_LOG_LEVEL: 'VERBOSE',
-      },
-    };
-  }
 
   async function waitForTelemetry() {
     const response = await fetch(`http://localhost:${appPort}/ohai`);
