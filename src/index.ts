@@ -22,6 +22,16 @@ if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL) {
   baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
 }
 
+const instrumentationConfig: any = {};
+if (
+  !process.env.DASH0_ENABLE_FS_INSTRUMENTATION ||
+  process.env.DASH0_ENABLE_FS_INSTRUMENTATION.trim().toLowerCase() !== 'true'
+) {
+  instrumentationConfig['@opentelemetry/instrumentation-fs'] = {
+    enabled: false,
+  };
+}
+
 const configuration: Partial<NodeSDKConfiguration> = {
   traceExporter: new OTLPTraceExporter({
     url: `${baseUrl}/v1/traces`,
@@ -32,16 +42,7 @@ const configuration: Partial<NodeSDKConfiguration> = {
     }),
   }),
 
-  instrumentations: [
-    getNodeAutoInstrumentations(
-      // TODO provide an opt-in switch for fs
-      {
-        '@opentelemetry/instrumentation-fs': {
-          enabled: false,
-        },
-      },
-    ),
-  ],
+  instrumentations: [getNodeAutoInstrumentations(instrumentationConfig)],
 
   resource: new Resource({
     'telemetry.distro.name': 'dash0-nodejs',
