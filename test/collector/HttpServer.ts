@@ -28,12 +28,6 @@ export default class HttpServer extends AbstractServer {
 
   handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname;
-    if (req.method !== 'POST') {
-      res.statusCode = 405;
-      res.end();
-      return;
-    }
-
     switch (pathname) {
       case '/v1/traces':
         this.handleTraceRequest(req, res);
@@ -46,8 +40,7 @@ export default class HttpServer extends AbstractServer {
         return;
     }
 
-    res.statusCode = 404;
-    res.end();
+    this.sendPlainTextResponse(res, 404, '404 page not found\n');
   }
 
   handleTraceRequest(req: IncomingMessage, res: ServerResponse) {
@@ -89,6 +82,20 @@ export default class HttpServer extends AbstractServer {
     addToSink: (data: any) => void,
     responseProperty: string,
   ) {
+    if (req.method !== 'POST') {
+      return this.sendPlainTextResponse(res, 405, '405 method not allowed, supported: [POST]');
+    }
+
+    let contentType = req.headers['content-type'];
+    if (!contentType) {
+      return this.sendUnsupportedMediaType(res);
+    }
+    // "application/json; charset=utf-8" -> "application/json"
+    contentType = contentType.split(';')[0].trim().toLowerCase();
+    if (contentType !== 'application/json' && contentType !== 'application/x-protobuf') {
+      return this.sendUnsupportedMediaType(res);
+    }
+
     const chunks: Buffer[] = [];
     req
       .on('data', chunk => {
@@ -96,18 +103,10 @@ export default class HttpServer extends AbstractServer {
       })
       .on('end', () => {
         const buffer = Buffer.concat(chunks);
-        const contentType = req.headers['content-type'];
-        if (contentType?.toLowerCase().startsWith('application/x-protobuf')) {
+        if (contentType === 'application/x-protobuf') {
           this.handleHttpProtobuf(buffer, res, decodeFunction, addToSink, responseProperty);
-        } else if (contentType?.toLowerCase().startsWith('application/json')) {
+        } else if (contentType === 'application/json') {
           this.handleHttpJson(res);
-        } else {
-          if (!contentType) {
-            console.warn('request had no content type, assuming http/protobuf');
-          } else {
-            console.warn(`request had unexpected content type (${contentType}), assuming http/protobuf`);
-          }
-          this.handleHttpProtobuf(buffer, res, decodeFunction, addToSink, responseProperty);
         }
       });
   }
@@ -132,5 +131,19 @@ export default class HttpServer extends AbstractServer {
     res.statusCode = 501;
     res.setHeader('Content-Type', 'text/plain');
     res.end('http/json is not supported (yet), only grpc and http/protobuf\n');
+  }
+
+  sendPlainTextResponse(res: ServerResponse, status: number, content: string) {
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(content);
+  }
+
+  sendUnsupportedMediaType(res: ServerResponse) {
+    this.sendPlainTextResponse(
+      res,
+      415,
+      '415 unsupported media type, supported: [application/json, application/x-protobuf]',
+    );
   }
 }
