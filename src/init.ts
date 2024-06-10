@@ -17,7 +17,7 @@ if (process.env.DASH0_DEBUG) {
   console.log('Dash0 OpenTelemetry distribution for Node.js: Starting NodeSDK.');
 }
 
-let baseUrl = 'http://dash0-opentelemetry-collector-daemonset.default.svc.cluster.local:4318';
+let baseUrl = 'http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318';
 if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL) {
   baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
 }
