@@ -18,6 +18,10 @@ This can be disabled either by setting `OTEL_SERVICE_NAME` or by setting `DASH0_
 
 Additional debug logs can be enabled by setting `DASH0_DEBUG=true`.
 
+### <a id="DASH0_DISABLE">DASH0_DISABLE</a>
+
+Disables the Dash0 Node.js distribution entirely.
+
 ### <a id="DASH0_ENABLE_FS_INSTRUMENTATION">DASH0_ENABLE_FS_INSTRUMENTATION</a>
 
 By default, the instrumentation plug-in `@opentelemetry/instrumentation-fs` is disabled. Set `DASH0_ENABLE_FS_INSTRUMENTATION=true` to enable spans for file system access.
