@@ -26,3 +26,18 @@ By default, the instrumentation plug-in `@opentelemetry/instrumentation-fs` is d
 
 The base URL of the OpenTelemetry collector that the distribution will send data to.
 It defaults to `http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318`.
+
+### Enabling only specific instrumentations
+
+By default, all
+[supported instrumentations](#https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#supported-instrumentations)
+are enabled (with the exception of `@opentelemetry/instrumentation-fs`), but you can use the environment variable
+`OTEL_NODE_ENABLED_INSTRUMENTATIONS` to enable only certain instrumentations by providing a comma-separated list of the
+instrumentation package names without the `@opentelemetry/instrumentation-` prefix.
+
+For example, to enable only
+[@opentelemetry/instrumentation-http](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-instrumentation-http)
+and [@opentelemetry/instrumentation-nestjs-core](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/plugins/node/opentelemetry-instrumentation-nestjs-core)
+instrumentations, set `OTEL_NODE_ENABLED_INSTRUMENTATIONS="http,nestjs-core"`.
+
+See https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#usage-auto-instrumentation for more information.
