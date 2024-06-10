@@ -166,6 +166,7 @@ export function defaultAppConfiguration(appPort: number): ChildProcessWrapperOpt
     useTsNode: true,
     useDistro: true,
     env: {
+      ...process.env,
       PORT: appPort.toString(),
       // have the Node.js SDK send spans every 100 ms instead of every 5 seconcds to speed up tests
       OTEL_BSP_SCHEDULE_DELAY: '100',
