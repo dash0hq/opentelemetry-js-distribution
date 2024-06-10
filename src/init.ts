@@ -7,6 +7,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { Detector, DetectorSync, envDetector, hostDetector, processDetector, Resource } from '@opentelemetry/resources';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import { containerDetector } from '@opentelemetry/resource-detector-container';
 
 import { version } from '../package.json';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
@@ -55,7 +56,7 @@ let detectors: (Detector | DetectorSync)[];
 if (process.env.OTEL_NODE_RESOURCE_DETECTORS != null) {
   detectors = getResourceDetectors();
 } else {
-  detectors = [envDetector, processDetector, hostDetector];
+  detectors = [envDetector, processDetector, containerDetector, hostDetector];
 }
 detectors.push(new PodUidDetector());
 detectors.push(new ServiceNameFallbackDetector());
