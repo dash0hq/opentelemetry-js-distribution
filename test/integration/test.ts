@@ -12,8 +12,11 @@ import runCommand from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
+import delay from '../util/delay';
 
 const skipWhenNodeJsVersionIsSmallerThan = '18.0.0';
+
+const { fail } = expect;
 
 const appPort = 1302;
 let expectedDistroVersion: number;
@@ -104,7 +107,7 @@ describe('attach', () => {
       await appUnderTest.stop();
     });
 
-    it('should attach via --require and derive a service name from the package.json file ', async () => {
+    it('should attach via --require and derive a service name from the package.json file', async () => {
       await waitUntil(async () => {
         const telemetry = await waitForTelemetry();
         expectMatchingSpan(
@@ -119,6 +122,37 @@ describe('attach', () => {
           ],
         );
       });
+    });
+  });
+
+  describe('disable via DASH0_DISABLE', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    before(async () => {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      if (!appConfiguration.env) {
+        appConfiguration.env = {};
+      }
+      appConfiguration.env.DASH0_DISABLE = 'true';
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+      await appUnderTest.start();
+    });
+
+    after(async () => {
+      await appUnderTest.stop();
+    });
+
+    it('should do nothing if disabled', async () => {
+      await delay(1000);
+      const response = await fetch(`http://localhost:${appPort}/ohai`);
+      await delay(2000);
+      expect(response.status).to.equal(200);
+      const responsePayload = await response.json();
+      expect(responsePayload).to.deep.equal({ message: 'We make Observability easy for every developer.' });
+
+      if (await collector().hasTelemetry()) {
+        fail('The collector received telemetry data although it should not have received anything.');
+      }
     });
   });
 

@@ -27,4 +27,8 @@ export default class CollectorChildProcessWrapper extends ChildProcessWrapper {
   async fetchTelemetry() {
     return <OpenTelemetryData>await collector().sendRequest({ command: 'telemetry' });
   }
+
+  async clear() {
+    await collector().sendRequest({ command: 'clear' });
+  }
 }
