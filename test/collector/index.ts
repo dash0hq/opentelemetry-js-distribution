@@ -34,6 +34,9 @@ function registerIpcMessageListener() {
       case 'telemetry':
         sendToParentProcess({ id, ...sink.getTelemetry() });
         break;
+      case 'clear':
+        sink.clear();
+        break;
       default:
         console.error(`Unknown message: ${inspect(message)}`);
     }

@@ -21,6 +21,10 @@ export const mochaHooks = {
     console.debug('[rootHooks] global mock collector started');
   },
 
+  async beforeEach() {
+    collectorInstance.clear();
+  },
+
   async afterAll() {
     console.debug('[rootHooks] stopping global mock collector');
     await collectorInstance.stop();

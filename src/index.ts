@@ -36,7 +36,11 @@ function init() {
   }
 }
 
-init();
+if (process.env.DASH0_DISABLE == null || process.env.DASH0_DISABLE.toLowerCase() !== 'true') {
+  init();
+} else {
+  logProhibitiveError(`The distribution has been disabled by setting DASH0_DISABLE=${process.env.DASH0_DISABLE}.`);
+}
 
 function logProhibitiveError(message: string) {
   console.error(`[${prefix}] ${message} OpenTelemetry data will not be sent to Dash0.`);

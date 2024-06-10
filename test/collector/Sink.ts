@@ -64,6 +64,14 @@ export default class Sink {
     return this.telemetry;
   }
 
+  clear() {
+    this.telemetry = {
+      traces: [],
+      metrics: [],
+      logs: [],
+    };
+  }
+
   printStats() {
     console.log(JSON.stringify(this.stats(), null, 2));
   }
