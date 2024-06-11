@@ -3,7 +3,7 @@
 
 import { SpanKind } from '@opentelemetry/api';
 import { expect } from 'chai';
-import { open, readFile, unlink } from 'node:fs/promises';
+import { FileHandle, open, readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import semver from 'semver';
 
@@ -129,17 +129,20 @@ describe('attach', () => {
 
   describe('print spans to file', () => {
     let appUnderTest: ChildProcessWrapper;
-    const filename = join(__dirname, 'spans.json');
+    const spanFilename = join(__dirname, 'spans.json');
+    // const metricsFilename = join(__dirname, 'metrics.json');
 
     before(async () => {
       try {
-        await unlink(filename);
+        await unlink(spanFilename);
+        // await unlink(metricsFilename);
       } catch {
-        // expected outcome, file did not exist
+        // expected outcome, files did not exist
       }
 
       const appConfiguration = defaultAppConfiguration(appPort);
-      appConfiguration.env!.DASH0_DEBUG_PRINT_SPANS = filename;
+      appConfiguration.env!.DASH0_DEBUG_PRINT_SPANS = spanFilename;
+      // appConfiguration.env!.DASH0_DEBUG_PRINT_METRICS = metricsFilename;
       appUnderTest = new ChildProcessWrapper(appConfiguration);
       await appUnderTest.start();
     });
@@ -147,26 +150,25 @@ describe('attach', () => {
     after(async () => {
       await appUnderTest.stop();
       try {
-        await unlink(filename);
+        await unlink(spanFilename);
+        // await unlink(metricsFilename);
       } catch (e) {
         // ignore
       }
     });
 
-    it('should attach via --require and print spans to target file', async () => {
+    it('should attach via --require and print spans to the configured file', async () => {
+      // await waitUntil(async () => {
+      //   const metricsFile = await verifyFileHasBeenCreated(metricsFilename);
+      //   const metrics = JSON.parse(String(await metricsFile.readFile()));
+      //   expect(metrics).to.not.be.empty;
+      // });
+
       await waitUntil(async () => {
         await sendRequestAndVerifyResponse();
-        let file;
-        try {
-          file = await open(filename);
-        } catch (e: any) {
-          if (e.code && e.code === 'ENOENT') {
-            fail(`The Dash0 Node.js distribution in the application under test did not create the file ${filename}.`);
-          }
-          throw e;
-        }
+        const spanFile = await verifyFileHasBeenCreated(spanFilename);
         const spans = [];
-        for await (const line of file.readLines()) {
+        for await (const line of spanFile.readLines()) {
           try {
             spans.push(JSON.parse(line));
           } catch (error) {
@@ -228,5 +230,18 @@ describe('attach', () => {
     expect(response.status).to.equal(200);
     const responsePayload = await response.json();
     expect(responsePayload).to.deep.equal({ message: 'We make Observability easy for every developer.' });
+  }
+
+  async function verifyFileHasBeenCreated(filename: string): Promise<FileHandle> {
+    let file;
+    try {
+      file = await open(filename);
+    } catch (e: any) {
+      if (e.code && e.code === 'ENOENT') {
+        fail(`The Dash0 Node.js distribution in the application under test did not create the file ${filename}.`);
+      }
+      throw e;
+    }
+    return file;
   }
 });
