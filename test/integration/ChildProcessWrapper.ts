@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { ChildProcess, fork, ForkOptions } from 'node:child_process';
 import EventEmitter from 'node:events';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import waitUntil, { RetryOptions } from '../util/waitUntil';
 
 export interface ChildProcessWrapperOptions {
