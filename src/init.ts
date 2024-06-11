@@ -4,14 +4,18 @@
 import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { Detector, DetectorSync, envDetector, hostDetector, processDetector, Resource } from '@opentelemetry/resources';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
-import { containerDetector } from '@opentelemetry/resource-detector-container';
+import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 
 import { version } from '../package.json';
+
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
+import { FileSpanExporter } from './util/FileSpanExporter';
 
 if (process.env.DASH0_DEBUG) {
   console.log('Dash0 OpenTelemetry distribution for Node.js: Starting NodeSDK.');
@@ -32,10 +36,24 @@ if (
   };
 }
 
+const spanProcessors: SpanProcessor[] = [
+  new BatchSpanProcessor(
+    new OTLPTraceExporter({
+      url: `${baseUrl}/v1/traces`,
+    }),
+  ),
+];
+
+if (process.env.DASH0_DEBUG_PRINT_SPANS != null) {
+  if (process.env.DASH0_DEBUG_PRINT_SPANS.toLocaleLowerCase() === 'true') {
+    spanProcessors.push(new BatchSpanProcessor(new ConsoleSpanExporter()));
+  } else {
+    spanProcessors.push(new BatchSpanProcessor(new FileSpanExporter(process.env.DASH0_DEBUG_PRINT_SPANS)));
+  }
+}
+
 const configuration: Partial<NodeSDKConfiguration> = {
-  traceExporter: new OTLPTraceExporter({
-    url: `${baseUrl}/v1/traces`,
-  }),
+  spanProcessors: spanProcessors,
   metricReader: new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter({
       url: `${baseUrl}/v1/metrics`,
