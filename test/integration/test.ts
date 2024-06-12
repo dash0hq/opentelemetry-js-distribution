@@ -165,6 +165,97 @@ describe('attach', () => {
     });
   });
 
+  describe('flush on exit via signal', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    beforeEach(async () => {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      appConfiguration.env!.DASH0_BOOTSTRAP_SPAN = 'Dash0 Test Bootstrap Span';
+      appConfiguration.env!.DASH0_FLUSH_ON_SIGTERM_SIGINT = 'true';
+
+      // Reset interval for sending spans back to the default of 5 seconds instead of using the 100 ms the other test
+      // cases use. This gives this test case a chance to fail without the flush-on-exit mechanism.
+      appConfiguration.env!.OTEL_BSP_SCHEDULE_DELAY = '300000';
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+    });
+
+    afterEach(async () => {
+      await appUnderTest.stop();
+    });
+
+    it('should flush telemetry before process exit due to SIGTERM', async () => {
+      await appUnderTest.start();
+      await appUnderTest.stop();
+      await waitUntil(async () => {
+        const telemetry = await waitForTraceData();
+        expectMatchingSpan(
+          telemetry.traces,
+          [
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
+          ],
+          [span => expect(span.name).to.equal('Dash0 Test Bootstrap Span')],
+        );
+      });
+    });
+
+    it('should flush telemetry before process exit due to SIGINT', async () => {
+      await appUnderTest.start();
+      await appUnderTest.stop('SIGINT');
+      await waitUntil(async () => {
+        const telemetry = await waitForTraceData();
+        expectMatchingSpan(
+          telemetry.traces,
+          [
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
+          ],
+          [span => expect(span.name).to.equal('Dash0 Test Bootstrap Span')],
+        );
+      });
+    });
+  });
+
+  describe('flush on normal process exit (empty event loop)', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    beforeEach(async () => {
+      const appConfiguration = {
+        path: 'test/apps/empty-event-loop',
+        label: 'app',
+        useTsNode: true,
+        useDistro: true,
+        env: {
+          ...process.env,
+          DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
+          DASH0_BOOTSTRAP_SPAN: 'Dash0 Test Bootstrap Span',
+        },
+      };
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+    });
+
+    it('should flush telemetry before process exit due to empty event loop', async () => {
+      await appUnderTest.start();
+      await waitUntil(async () => {
+        const telemetry = await waitForTraceData();
+        expectMatchingSpan(
+          telemetry.traces,
+          [
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
+          ],
+          [span => expect(span.name).to.equal('Dash0 Test Bootstrap Span')],
+        );
+      });
+    });
+  });
+
   describe('print spans to file', () => {
     let appUnderTest: ChildProcessWrapper;
     const spanFilename = join(__dirname, 'spans.json');
