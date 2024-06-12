@@ -42,6 +42,32 @@ Disables the Dash0 Node.js distribution entirely.
 
 By default, the instrumentation plug-in `@opentelemetry/instrumentation-fs` is disabled. Set `DASH0_ENABLE_FS_INSTRUMENTATION=true` to enable spans for file system access.
 
+
+### <a id="DASH0_FLUSH_ON_SIGTERM_SIGINT">DASH0_FLUSH_ON_SIGTERM_SIGINT</a>
+
+If `DASH0_FLUSH_ON_SIGTERM_SIGINT=true` is set, the Dash0 Node.js distribution will install a handler for SIGTERM and
+SIGINT that will shutdown the OpenTelemetry SDK gracefully when one of these signals is received.
+The SDK shutdown is timeboxed to 500 milliseconds.
+The signal handler will call `process.exit(0)` after the SDK's shutdown has completed, or after the 500 millisecond
+timeout, whichever happens sooner.
+This option can be helpful if you care about telemetry that is being produced shortly before the process terminates.
+This option must not be used if the application under monitoring has its own handler for SIGTERM or SIGINT, because
+Dash0's handler (and in particular the necessary `process.exit(0)` call) might interfere with the application's own
+signal handler.
+
+### <a id="DASH0_FLUSH_ON_EMPTY_EVENT_LOOP">DASH0_FLUSH_ON_EMPTY_EVENT_LOOP</a>
+
+By default, the Dash0 Node.js distribution will install a hook that will shutdown the OpenTelemetry SDK gracefully when
+the Node.js runtime is about to exit because the event loop is empty.
+This can be disabled by setting `DASH0_FLUSH_ON_EMPTY_EVENT_LOOP=false`.
+The SDK shutdown is timeboxed to 500 milliseconds.
+This hook can be helpful if you care about telemetry that is being produced shortly before the process
+exits.
+Disabling it can be useful if you care about the process terminating as quickly as possible when the event loop is
+empty.
+In contrast to the handlers for SIGTERM/SIGINT (see above), this hook will not call `process.exit` (since the Node.js
+runtime will exit on its own anyway).
+
 ### <a id="DASH0_OTEL_COLLECTOR_BASE_URL">DASH0_OTEL_COLLECTOR_BASE_URL</a>
 
 The base URL of the OpenTelemetry collector that the distribution will send data to.
