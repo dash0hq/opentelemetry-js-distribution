@@ -22,6 +22,8 @@ if (process.env.DASH0_DEBUG) {
   console.log('Dash0 OpenTelemetry distribution for Node.js: Starting NodeSDK.');
 }
 
+let sdkShutdownHasBeenCalled = false;
+
 let baseUrl = 'http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318';
 if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL) {
   baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
@@ -95,6 +97,69 @@ if (process.env.DASH0_BOOTSTRAP_SPAN != null) {
     .end();
 }
 
+if (process.env.DASH0_FLUSH_ON_SIGTERM_SIGINT && process.env.DASH0_FLUSH_ON_SIGTERM_SIGINT.toLowerCase() === 'true') {
+  ['SIGTERM', 'SIGINT'].forEach(signal => {
+    process.once(signal, onProcessExit.bind(null, true));
+  });
+}
+
+if (
+  !process.env.DASH0_FLUSH_ON_EMPTY_EVENT_LOOP ||
+  process.env.DASH0_FLUSH_ON_EMPTY_EVENT_LOOP.toLowerCase() !== 'false'
+) {
+  process.once('beforeExit', onProcessExit.bind(null, false));
+}
+
 if (process.env.DASH0_DEBUG) {
   console.log('Dash0 OpenTelemetry distribution for Node.js: NodeSDK started.');
+}
+
+async function onProcessExit(callProcessExit: boolean) {
+  await executePromiseWithTimeout(gracefulSdkShutdown(callProcessExit), 500, callProcessExit);
+}
+
+async function gracefulSdkShutdown(callProcessExit: boolean) {
+  try {
+    if (sdkShutdownHasBeenCalled) {
+      if (callProcessExit) {
+        process.exit(0);
+      }
+      return;
+    }
+
+    sdkShutdownHasBeenCalled = true;
+    await sdk.shutdown();
+
+    if (process.env.DASH0_DEBUG) {
+      console.log('Dash0 OpenTelemetry distribution for Node.js: OpenTelemetry SDK has been shut down successfully.');
+    }
+  } catch (err) {
+    console.error('Dash0 OpenTelemetry distribution for Node.js: Error shutting down the OpenTelemetry SDK:', err);
+  } finally {
+    if (callProcessExit) {
+      process.exit(0);
+    }
+  }
+}
+
+function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, callProcessExit: boolean) {
+  let setTimeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise(resolve => {
+    setTimeoutId = setTimeout(() => {
+      resolve(null);
+    }, timeoutMillis);
+  });
+
+  return Promise.race([
+    //
+    promise,
+    timeoutPromise,
+  ]).finally(() => {
+    if (setTimeoutId) {
+      clearTimeout(setTimeoutId);
+    }
+    if (callProcessExit) {
+      process.exit(0);
+    }
+  });
 }
