@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { SpanKind, trace } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
@@ -87,3 +88,14 @@ sdk.start();
 if (process.env.DASH0_DEBUG) {
   console.log('Dash0 OpenTelemetry distribution for Node.js: NodeSDK started.');
 }
+
+setTimeout(() => {
+  if (process.env.DASH0_BOOTSTRAP_SPAN != null) {
+    trace
+      .getTracer('dash0-nodejs-distribution')
+      .startSpan(process.env.DASH0_BOOTSTRAP_SPAN, { kind: SpanKind.INTERNAL })
+      .end();
+  }
+  // Note: Calling startSpan immediately after sdk.start() will result in the span not actually being created, probably
+  // because the tracer is not ready yet. For now we use a delay of 1s to make this somewhat reliable.
+}, 1000);
