@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { SpanKind, trace } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
@@ -83,6 +84,16 @@ configuration.resourceDetectors = detectors;
 const sdk = new NodeSDK(configuration);
 
 sdk.start();
+
+if (process.env.DASH0_BOOTSTRAP_SPAN != null) {
+  const tracer = trace.getTracer('dash0-nodejs-distribution');
+  tracer //
+    .startSpan(process.env.DASH0_BOOTSTRAP_SPAN, {
+      root: true,
+      kind: SpanKind.INTERNAL,
+    })
+    .end();
+}
 
 if (process.env.DASH0_DEBUG) {
   console.log('Dash0 OpenTelemetry distribution for Node.js: NodeSDK started.');
