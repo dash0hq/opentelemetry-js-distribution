@@ -14,6 +14,11 @@ If no `OTEL_SERVICE_NAME` has been set, a service name is automatically derived 
 (if it is present) as `${packageJson.name}@${packageJson.version}`.
 This can be disabled either by setting `OTEL_SERVICE_NAME` or by setting `DASH0_AUTOMATIC_SERVICE_NAME=false`.
 
+### <a id="DASH0_BOOTSTRAP_SPAN">DASH0_BOOTSTRAP_SPAN</a>
+
+If set to a non-empty string, the distribution will create a span immediately at startup with the span name set to the
+value of DASH0_BOOTSTRAP_SPAN.
+
 ### <a id="DASH0_DEBUG">DASH0_DEBUG</a>
 
 Additional debug logs can be enabled by setting `DASH0_DEBUG=true`.
