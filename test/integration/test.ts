@@ -34,7 +34,11 @@ describe('attach', () => {
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
 
-  describe('tracing', () => {
+  beforeEach(async function () {
+    collector().clear();
+  });
+
+  describe('basic tracing', () => {
     let appUnderTest: ChildProcessWrapper;
 
     before(async () => {
@@ -49,7 +53,7 @@ describe('attach', () => {
 
     it('should attach via --require and capture spans', async () => {
       await waitUntil(async () => {
-        const telemetry = await waitForTelemetry();
+        const telemetry = await sendRequestAndWaitForTraceData();
         expectMatchingSpan(
           telemetry.traces,
           [
@@ -59,7 +63,7 @@ describe('attach', () => {
             resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
           ],
           [
-            span => expect(span.kind).to.equal(SpanKind.SERVER),
+            span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
             span => expectSpanAttribute(span, 'http.route', '/ohai'),
           ],
         );
@@ -83,12 +87,12 @@ describe('attach', () => {
 
     it('should attach via --require and detect the pod uid', async () => {
       await waitUntil(async () => {
-        const telemetry = await waitForTelemetry();
+        const telemetry = await sendRequestAndWaitForTraceData();
         expectMatchingSpan(
           telemetry.traces,
           [resource => expectResourceAttribute(resource, 'k8s.pod.uid', 'f57400dc-94ce-4806-a52e-d2726f448f15')],
           [
-            span => expect(span.kind).to.equal(SpanKind.SERVER),
+            span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
             span => expectSpanAttribute(span, 'http.route', '/ohai'),
           ],
         );
@@ -111,7 +115,7 @@ describe('attach', () => {
 
     it('should attach via --require and derive a service name from the package.json file', async () => {
       await waitUntil(async () => {
-        const telemetry = await waitForTelemetry();
+        const telemetry = await sendRequestAndWaitForTraceData();
         expectMatchingSpan(
           telemetry.traces,
           [
@@ -119,9 +123,43 @@ describe('attach', () => {
               expectResourceAttribute(resource, 'service.name', 'dash0-app-under-test-express-typescript@1.0.0'),
           ],
           [
-            span => expect(span.kind).to.equal(SpanKind.SERVER),
+            span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
             span => expectSpanAttribute(span, 'http.route', '/ohai'),
           ],
+        );
+      });
+    });
+  });
+
+  describe('bootstrap span', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    before(async () => {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      appConfiguration.env!.DASH0_BOOTSTRAP_SPAN = 'Dash0 Test Bootstrap Span';
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+    });
+
+    after(async () => {
+      await appUnderTest.stop();
+    });
+
+    it('should create an internal span on bootstrap', async () => {
+      // It is important for this test that we do not start the app in the before hook, since the beforeEach from the
+      // top level suite clears the mock collector's spans, thus we would accidentally delete the bootstrap span
+      // (because the top level beforeHook is executed after this suite's before hook).
+      await appUnderTest.start();
+      await waitUntil(async () => {
+        const telemetry = await waitForTraceData();
+        expectMatchingSpan(
+          telemetry.traces,
+          [
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
+          ],
+          [span => expect(span.name).to.equal('Dash0 Test Bootstrap Span')],
         );
       });
     });
@@ -185,7 +223,7 @@ describe('attach', () => {
             resourceAttributes =>
               expect(resourceAttributes['telemetry.distro.version']).to.equal(expectedDistroVersion),
           ],
-          [spanAttributes => expect(spanAttributes.kind).to.equal(SpanKind.SERVER)],
+          [spanAttributes => expect(spanAttributes.kind).to.equal(SpanKind.SERVER, 'span kind should be server')],
           [spanAttributes => expect(spanAttributes['http.route']).to.equal('/ohai')],
         );
       });
@@ -217,12 +255,9 @@ describe('attach', () => {
     });
   });
 
-  async function waitForTelemetry() {
+  async function sendRequestAndWaitForTraceData() {
     await sendRequestAndVerifyResponse();
-    if (!(await collector().hasTraces())) {
-      throw new Error('The collector never received any spans.');
-    }
-    return await collector().fetchTelemetry();
+    return waitForTraceData();
   }
 
   async function sendRequestAndVerifyResponse() {
@@ -230,6 +265,13 @@ describe('attach', () => {
     expect(response.status).to.equal(200);
     const responsePayload = await response.json();
     expect(responsePayload).to.deep.equal({ message: 'We make Observability easy for every developer.' });
+  }
+
+  async function waitForTraceData() {
+    if (!(await collector().hasTraces())) {
+      throw new Error('The collector never received any spans.');
+    }
+    return await collector().fetchTelemetry();
   }
 
   async function verifyFileHasBeenCreated(filename: string): Promise<FileHandle> {
