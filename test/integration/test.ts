@@ -9,8 +9,14 @@ import semver from 'semver';
 
 import { SeverityNumber } from '../collector/types/opentelemetry/proto/logs/v1/logs';
 import delay from '../util/delay';
-import { expectLogRecordAttribute, expectResourceAttribute, expectSpanAttribute } from '../util/expectAttribute';
+import {
+  expectLogRecordAttribute,
+  expectMetricDataPointAttribute,
+  expectResourceAttribute,
+  expectSpanAttribute,
+} from '../util/expectAttribute';
 import { expectMatchingLogRecord } from '../util/expectMatchingLogRecord';
+import { expectMatchingMetric } from '../util/expectMatchingMetric';
 import { expectMatchingSpan, expectMatchingSpanInFileDump } from '../util/expectMatchingSpan';
 import runCommand from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
@@ -66,6 +72,33 @@ describe('attach', () => {
           [
             span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
             span => expectSpanAttribute(span, 'http.route', '/ohai'),
+          ],
+        );
+      });
+    });
+
+    it('should attach via --require and capture metrics', async () => {
+      await waitUntil(async () => {
+        const metrics = await sendRequestAndWaitForMetrics();
+        expectMatchingMetric(
+          metrics,
+          [
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
+          ],
+          [
+            metric => expect(metric.name).to.equal('http.server.duration'),
+            metric => {
+              const dataPoints = metric.histogram?.data_points;
+              expect(dataPoints).to.exist;
+              expect(dataPoints).to.not.be.empty;
+              dataPoints?.forEach(dataPoint => {
+                expectMetricDataPointAttribute(dataPoint, 'http.method', 'GET');
+                expectMetricDataPointAttribute(dataPoint, 'http.route', '/ohai');
+              });
+            },
           ],
         );
       });
@@ -377,6 +410,11 @@ describe('attach', () => {
     return waitForTraceData();
   }
 
+  async function sendRequestAndWaitForMetrics() {
+    await sendRequestAndVerifyResponse();
+    return waitForMetrics();
+  }
+
   async function sendRequestAndWaitForLogRecords() {
     await sendRequestAndVerifyResponse();
     return waitForLogRecords();
@@ -394,6 +432,13 @@ describe('attach', () => {
       throw new Error('The collector never received any spans.');
     }
     return (await collector().fetchTelemetry()).traces;
+  }
+
+  async function waitForMetrics() {
+    if (!(await collector().hasMetrics())) {
+      throw new Error('The collector never received any metrics.');
+    }
+    return (await collector().fetchTelemetry()).metrics;
   }
 
   async function waitForLogRecords() {
