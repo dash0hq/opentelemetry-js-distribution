@@ -172,8 +172,10 @@ export function defaultAppConfiguration(appPort: number): ChildProcessWrapperOpt
     env: {
       ...process.env,
       PORT: appPort.toString(),
-      // have the Node.js SDK send spans every 100 ms instead of every 5 seconds to speed up tests
-      OTEL_BSP_SCHEDULE_DELAY: '100',
+      // have the Node.js SDK send spans every 20 ms instead of every 5 seconds to speed up tests
+      OTEL_BSP_SCHEDULE_DELAY: '20',
+      // have the Node.js SDK send logs every 20 ms instead of every 5 seconds to speed up tests
+      OTEL_BLRP_SCHEDULE_DELAY: '20',
       DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
     },
   };
