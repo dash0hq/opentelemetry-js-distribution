@@ -19,10 +19,11 @@ import { version } from '../package.json';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { FileSpanExporter } from './util/FileSpanExporter';
+import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from './util/environment';
 
-if (process.env.DASH0_DEBUG) {
-  console.log('Dash0 OpenTelemetry distribution for Node.js: Starting NodeSDK.');
-}
+const debugOutput = hasOptedIn('DASH0_DEBUG');
+
+printDebugOutput('Dash0 OpenTelemetry distribution for Node.js: Starting NodeSDK.');
 
 let sdkShutdownHasBeenCalled = false;
 
@@ -31,98 +32,121 @@ if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL) {
   baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
 }
 
-const instrumentationConfig: any = {};
-if (
-  !process.env.DASH0_ENABLE_FS_INSTRUMENTATION ||
-  process.env.DASH0_ENABLE_FS_INSTRUMENTATION.trim().toLowerCase() !== 'true'
-) {
-  instrumentationConfig['@opentelemetry/instrumentation-fs'] = {
-    enabled: false,
-  };
-}
-
-const spanProcessors: SpanProcessor[] = [
-  new BatchSpanProcessor(
-    new OTLPTraceExporter({
-      url: `${baseUrl}/v1/traces`,
-    }),
-  ),
-];
-
-const logRecordProcessor = new BatchLogRecordProcessor(
-  new OTLPLogExporter({
-    url: `${baseUrl}/v1/logs`,
-  }),
-);
-
-if (process.env.DASH0_DEBUG_PRINT_SPANS != null) {
-  if (process.env.DASH0_DEBUG_PRINT_SPANS.toLocaleLowerCase() === 'true') {
-    spanProcessors.push(new BatchSpanProcessor(new ConsoleSpanExporter()));
-  } else {
-    spanProcessors.push(new BatchSpanProcessor(new FileSpanExporter(process.env.DASH0_DEBUG_PRINT_SPANS)));
-  }
-}
-
 const configuration: Partial<NodeSDKConfiguration> = {
-  spanProcessors: spanProcessors,
-
-  metricReader: new PeriodicExportingMetricReader({
-    exporter: new OTLPMetricExporter({
-      url: `${baseUrl}/v1/metrics`,
-    }),
-  }),
-
-  logRecordProcessor,
-
-  instrumentations: [getNodeAutoInstrumentations(instrumentationConfig)],
-
-  resource: new Resource({
-    'telemetry.distro.name': 'dash0-nodejs',
-    'telemetry.distro.version': version,
-  }),
+  spanProcessors: spanProcessors(),
+  metricReader: metricsReader(),
+  logRecordProcessor: logRecordProcessor(),
+  instrumentations: [getNodeAutoInstrumentations(createInstrumentationConfig())],
+  resource: resource(),
+  resourceDetectors: resourceDetectors(),
 };
-
-// Copy the behavior of the NodeSDK constructor with regard to resource detectors, but add the pod uid detector.
-// https://github.com/open-telemetry/opentelemetry-js/blob/73fddf9b5e7a93bd4cf21c2dbf444cee31d26c88/experimental/packages/opentelemetry-sdk-node/src/sdk.ts#L126-L132
-let detectors: (Detector | DetectorSync)[];
-if (process.env.OTEL_NODE_RESOURCE_DETECTORS != null) {
-  detectors = getResourceDetectors();
-} else {
-  detectors = [envDetector, processDetector, containerDetector, hostDetector];
-}
-detectors.push(new PodUidDetector());
-detectors.push(new ServiceNameFallbackDetector());
-configuration.resourceDetectors = detectors;
 
 const sdk = new NodeSDK(configuration);
 
 sdk.start();
 
-if (process.env.DASH0_BOOTSTRAP_SPAN != null) {
-  const tracer = trace.getTracer('dash0-nodejs-distribution');
-  tracer //
-    .startSpan(process.env.DASH0_BOOTSTRAP_SPAN, {
-      root: true,
-      kind: SpanKind.INTERNAL,
-    })
-    .end();
+createBootstrapSpanIfRequested();
+installProcessExitHandlers();
+
+printDebugOutput('Dash0 OpenTelemetry distribution for Node.js: NodeSDK started.');
+
+function spanProcessors(): SpanProcessor[] {
+  const spanProcessors: SpanProcessor[] = [
+    new BatchSpanProcessor(
+      new OTLPTraceExporter({
+        url: `${baseUrl}/v1/traces`,
+      }),
+    ),
+  ];
+
+  if (process.env.DASH0_DEBUG_PRINT_SPANS != null) {
+    if (process.env.DASH0_DEBUG_PRINT_SPANS.toLowerCase() === 'true') {
+      spanProcessors.push(new BatchSpanProcessor(new ConsoleSpanExporter()));
+    } else {
+      spanProcessors.push(new BatchSpanProcessor(new FileSpanExporter(process.env.DASH0_DEBUG_PRINT_SPANS)));
+    }
+  }
+  return spanProcessors;
 }
 
-if (process.env.DASH0_FLUSH_ON_SIGTERM_SIGINT && process.env.DASH0_FLUSH_ON_SIGTERM_SIGINT.toLowerCase() === 'true') {
-  ['SIGTERM', 'SIGINT'].forEach(signal => {
-    process.once(signal, onProcessExit.bind(null, true));
+function metricsReader(): PeriodicExportingMetricReader {
+  // Implement support for config of metric export timeout/interval via environment variables here in the distribution
+  // until https://github.com/open-telemetry/opentelemetry-js/issues/4655 has been implemented.
+  // The default values are taken from
+  // https://github.com/open-telemetry/opentelemetry-js/blob/812c774998fb60a0c666404ae71b1d508e0568f4/packages/sdk-metrics/src/export/PeriodicExportingMetricReader.ts#L97-L98
+  const exportIntervalMillis = parseNumericEnvironmentVariableWithDefault('OTEL_METRIC_EXPORT_INTERVAL', 60000);
+  const exportTimeoutMillis = parseNumericEnvironmentVariableWithDefault('OTEL_METRIC_EXPORT_TIMEOUT', 30000);
+
+  return new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({
+      url: `${baseUrl}/v1/metrics`,
+    }),
+    exportIntervalMillis,
+    exportTimeoutMillis,
   });
 }
 
-if (
-  !process.env.DASH0_FLUSH_ON_EMPTY_EVENT_LOOP ||
-  process.env.DASH0_FLUSH_ON_EMPTY_EVENT_LOOP.toLowerCase() !== 'false'
-) {
-  process.once('beforeExit', onProcessExit.bind(null, false));
+function logRecordProcessor() {
+  return new BatchLogRecordProcessor(
+    new OTLPLogExporter({
+      url: `${baseUrl}/v1/logs`,
+    }),
+  );
 }
 
-if (process.env.DASH0_DEBUG) {
-  console.log('Dash0 OpenTelemetry distribution for Node.js: NodeSDK started.');
+function createInstrumentationConfig(): any {
+  const instrumentationConfig: any = {};
+  if (!hasOptedIn('DASH0_ENABLE_FS_INSTRUMENTATION')) {
+    instrumentationConfig['@opentelemetry/instrumentation-fs'] = {
+      enabled: false,
+    };
+  }
+  return instrumentationConfig;
+}
+
+function resource() {
+  return new Resource({
+    'telemetry.distro.name': 'dash0-nodejs',
+    'telemetry.distro.version': version,
+  });
+}
+
+function resourceDetectors(): (Detector | DetectorSync)[] {
+  // Copy the behavior of the NodeSDK constructor with regard to resource detectors, but add the pod uid detector.
+  // https://github.com/open-telemetry/opentelemetry-js/blob/73fddf9b5e7a93bd4cf21c2dbf444cee31d26c88/experimental/packages/opentelemetry-sdk-node/src/sdk.ts#L126-L132
+  let detectors: (Detector | DetectorSync)[];
+  if (process.env.OTEL_NODE_RESOURCE_DETECTORS != null) {
+    detectors = getResourceDetectors();
+  } else {
+    detectors = [envDetector, processDetector, containerDetector, hostDetector];
+  }
+  detectors.push(new PodUidDetector());
+  detectors.push(new ServiceNameFallbackDetector());
+  return detectors;
+}
+
+function createBootstrapSpanIfRequested() {
+  if (process.env.DASH0_BOOTSTRAP_SPAN != null) {
+    const tracer = trace.getTracer('dash0-nodejs-distribution');
+    tracer //
+      .startSpan(process.env.DASH0_BOOTSTRAP_SPAN, {
+        root: true,
+        kind: SpanKind.INTERNAL,
+      })
+      .end();
+  }
+}
+
+function installProcessExitHandlers() {
+  if (hasOptedIn('DASH0_FLUSH_ON_SIGTERM_SIGINT')) {
+    ['SIGTERM', 'SIGINT'].forEach(signal => {
+      process.once(signal, onProcessExit.bind(null, true));
+    });
+  }
+
+  if (!hasOptedOut('DASH0_FLUSH_ON_EMPTY_EVENT_LOOP')) {
+    process.once('beforeExit', onProcessExit.bind(null, false));
+  }
 }
 
 async function onProcessExit(callProcessExit: boolean) {
@@ -141,9 +165,9 @@ async function gracefulSdkShutdown(callProcessExit: boolean) {
     sdkShutdownHasBeenCalled = true;
     await sdk.shutdown();
 
-    if (process.env.DASH0_DEBUG) {
-      console.log('Dash0 OpenTelemetry distribution for Node.js: OpenTelemetry SDK has been shut down successfully.');
-    }
+    printDebugOutput(
+      'Dash0 OpenTelemetry distribution for Node.js: OpenTelemetry SDK has been shut down successfully.',
+    );
   } catch (err) {
     console.error('Dash0 OpenTelemetry distribution for Node.js: Error shutting down the OpenTelemetry SDK:', err);
   } finally {
@@ -173,4 +197,10 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
       process.exit(0);
     }
   });
+}
+
+function printDebugOutput(message: string) {
+  if (debugOutput) {
+    console.log(message);
+  }
 }
