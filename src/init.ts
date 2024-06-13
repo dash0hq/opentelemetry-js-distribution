@@ -3,10 +3,12 @@
 
 import { SpanKind, trace } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { Detector, DetectorSync, envDetector, hostDetector, processDetector, Resource } from '@opentelemetry/resources';
+import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
@@ -47,6 +49,12 @@ const spanProcessors: SpanProcessor[] = [
   ),
 ];
 
+const logRecordProcessor = new BatchLogRecordProcessor(
+  new OTLPLogExporter({
+    url: `${baseUrl}/v1/logs`,
+  }),
+);
+
 if (process.env.DASH0_DEBUG_PRINT_SPANS != null) {
   if (process.env.DASH0_DEBUG_PRINT_SPANS.toLocaleLowerCase() === 'true') {
     spanProcessors.push(new BatchSpanProcessor(new ConsoleSpanExporter()));
@@ -57,11 +65,14 @@ if (process.env.DASH0_DEBUG_PRINT_SPANS != null) {
 
 const configuration: Partial<NodeSDKConfiguration> = {
   spanProcessors: spanProcessors,
+
   metricReader: new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter({
       url: `${baseUrl}/v1/metrics`,
     }),
   }),
+
+  logRecordProcessor,
 
   instrumentations: [getNodeAutoInstrumentations(instrumentationConfig)],
 

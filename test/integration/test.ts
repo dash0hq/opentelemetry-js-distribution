@@ -7,9 +7,10 @@ import { FileHandle, open, readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import semver from 'semver';
 
+import { SeverityNumber } from '../collector/types/opentelemetry/proto/logs/v1/logs';
 import delay from '../util/delay';
-
-import { expectResourceAttribute, expectSpanAttribute } from '../util/expectAttribute';
+import { expectLogRecordAttribute, expectResourceAttribute, expectSpanAttribute } from '../util/expectAttribute';
+import { expectMatchingLogRecord } from '../util/expectMatchingLogRecord';
 import { expectMatchingSpan, expectMatchingSpanInFileDump } from '../util/expectMatchingSpan';
 import runCommand from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
@@ -38,7 +39,7 @@ describe('attach', () => {
     collector().clear();
   });
 
-  describe('basic tracing', () => {
+  describe('basic signals', () => {
     let appUnderTest: ChildProcessWrapper;
 
     before(async () => {
@@ -53,9 +54,9 @@ describe('attach', () => {
 
     it('should attach via --require and capture spans', async () => {
       await waitUntil(async () => {
-        const telemetry = await sendRequestAndWaitForTraceData();
+        const traces = await sendRequestAndWaitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [
             resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
             resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
@@ -65,6 +66,31 @@ describe('attach', () => {
           [
             span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
             span => expectSpanAttribute(span, 'http.route', '/ohai'),
+          ],
+        );
+      });
+    });
+
+    it('should attach via --require and capture logs', async () => {
+      await waitUntil(async () => {
+        const logs = await sendRequestAndWaitForLogRecords();
+        expectMatchingLogRecord(
+          logs,
+          [
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
+            resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+            resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
+          ],
+          [
+            logRecord => expect(logRecord.body).to.deep.equal({ string_value: 'log body' }),
+            logRecord =>
+              expect(logRecord.severity_number).to.equal(
+                SeverityNumber.SEVERITY_NUMBER_INFO,
+                'severity number should be info',
+              ),
+            logRecord => expect(logRecord.severity_text).to.equal('INFO'),
+            logRecord => expectLogRecordAttribute(logRecord, 'log.type', 'LogRecord'),
           ],
         );
       });
@@ -87,9 +113,9 @@ describe('attach', () => {
 
     it('should attach via --require and detect the pod uid', async () => {
       await waitUntil(async () => {
-        const telemetry = await sendRequestAndWaitForTraceData();
+        const traces = await sendRequestAndWaitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [resource => expectResourceAttribute(resource, 'k8s.pod.uid', 'f57400dc-94ce-4806-a52e-d2726f448f15')],
           [
             span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
@@ -115,9 +141,9 @@ describe('attach', () => {
 
     it('should attach via --require and derive a service name from the package.json file', async () => {
       await waitUntil(async () => {
-        const telemetry = await sendRequestAndWaitForTraceData();
+        const traces = await sendRequestAndWaitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [
             resource =>
               expectResourceAttribute(resource, 'service.name', 'dash0-app-under-test-express-typescript@1.0.0'),
@@ -150,9 +176,9 @@ describe('attach', () => {
       // (because the top level beforeHook is executed after this suite's before hook).
       await appUnderTest.start();
       await waitUntil(async () => {
-        const telemetry = await waitForTraceData();
+        const traces = await waitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [
             resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
             resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
@@ -187,9 +213,9 @@ describe('attach', () => {
       await appUnderTest.start();
       await appUnderTest.stop();
       await waitUntil(async () => {
-        const telemetry = await waitForTraceData();
+        const traces = await waitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [
             resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
             resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
@@ -205,9 +231,9 @@ describe('attach', () => {
       await appUnderTest.start();
       await appUnderTest.stop('SIGINT');
       await waitUntil(async () => {
-        const telemetry = await waitForTraceData();
+        const traces = await waitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [
             resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
             resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
@@ -241,9 +267,9 @@ describe('attach', () => {
     it('should flush telemetry before process exit due to empty event loop', async () => {
       await appUnderTest.start();
       await waitUntil(async () => {
-        const telemetry = await waitForTraceData();
+        const traces = await waitForTraceData();
         expectMatchingSpan(
-          telemetry.traces,
+          traces,
           [
             resource => expectResourceAttribute(resource, 'telemetry.sdk.name', 'opentelemetry'),
             resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
@@ -351,6 +377,11 @@ describe('attach', () => {
     return waitForTraceData();
   }
 
+  async function sendRequestAndWaitForLogRecords() {
+    await sendRequestAndVerifyResponse();
+    return waitForLogRecords();
+  }
+
   async function sendRequestAndVerifyResponse() {
     const response = await fetch(`http://localhost:${appPort}/ohai`);
     expect(response.status).to.equal(200);
@@ -362,7 +393,14 @@ describe('attach', () => {
     if (!(await collector().hasTraces())) {
       throw new Error('The collector never received any spans.');
     }
-    return await collector().fetchTelemetry();
+    return (await collector().fetchTelemetry()).traces;
+  }
+
+  async function waitForLogRecords() {
+    if (!(await collector().hasLogs())) {
+      throw new Error('The collector never received any log records.');
+    }
+    return (await collector().fetchTelemetry()).logs;
   }
 
   async function verifyFileHasBeenCreated(filename: string): Promise<FileHandle> {
