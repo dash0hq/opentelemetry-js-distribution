@@ -5,6 +5,7 @@ import { expect } from 'chai';
 import { KeyValue } from '../collector/types/opentelemetry/proto/common/v1/common';
 import { Resource } from '../collector/types/opentelemetry/proto/resource/v1/resource';
 import { Span } from '../collector/types/opentelemetry/proto/trace/v1/trace';
+import { LogRecord } from '../collector/types/opentelemetry/proto/logs/v1/logs';
 
 const { fail } = expect;
 
@@ -39,6 +40,10 @@ export function expectResourceAttribute(resource: Resource, key: string, expecte
 
 export function expectSpanAttribute(span: Span, key: string, expectedValue: any) {
   expectAttribute(span, key, expectedValue, 'span');
+}
+
+export function expectLogRecordAttribute(logRecord: LogRecord, key: string, expectedValue: any) {
+  expectAttribute(logRecord, key, expectedValue, 'log record');
 }
 
 function getValue(attribute: KeyValue) {
