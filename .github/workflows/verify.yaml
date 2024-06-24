@@ -16,7 +16,6 @@ jobs:
       matrix:
         node-version: [ '18.x',  '20.x', '21.x', '22.x' ]
 
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,5 +102,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release --dry-run
+        run: npx semantic-release
 
