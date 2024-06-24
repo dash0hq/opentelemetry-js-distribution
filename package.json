@@ -2,12 +2,14 @@
   "name": "@dash0hq/opentelemetry",
   "version": "0.0.0-managed-by-semantic-release",
   "description": "Dash0 OpenTelemetry Wrapper for Node.js",
-  "main": "src/index.js",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc --build --force && cp LICENSE dist",
+    "build": "rimraf dist && tsc --build --force",
     "verify": "npm run lint && npm test",
     "lint": "npm run eslint && npm run prettier-check",
     "eslint": "eslint eslint.config.js src test",
+    "prepack": "rimraf dash0hq-opentelemetry-*.tgz && npm run build",
     "prettier": "prettier --write eslint.config.js .mocharc.js 'src/**/*.[jt]s' 'test/**/*.[jt]s' --parser typescript",
     "prettier-check": "prettier --check eslint.config.js 'src/**/*.[jt]s' 'test/**/*.[jt]s' --parser typescript",
     "test": "npm run test:unit && npm run test:integration",
@@ -16,6 +18,13 @@
     "test:coverage": "nyc npm run test",
     "start-collector": "node --require ts-node/register test/collector/index.ts"
   },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.ts",
+    "dist/**/*.ts.map",
+    "LICENSE",
+    "README.md"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dash0hq/opentelemetry-js-distribution.git"
@@ -74,6 +83,7 @@
     "nyc": "^17.0.0",
     "prettier": "^3.3.2",
     "protobufjs": "^7.3.2",
+    "rimraf": "^5.0.7",
     "semantic-release": "^24.0.0",
     "semver": "^7.6.2",
     "sinon": "^18.0.0",
