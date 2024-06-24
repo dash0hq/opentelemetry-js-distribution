@@ -1,6 +1,6 @@
 {
   "name": "@dash0/opentelemetry",
-  "version": "1.0.0",
+  "version": "0.0.0-managed-by-semantic-release",
   "description": "Dash0 OpenTelemetry Wrapper for Node.js",
   "main": "src/index.js",
   "scripts": {
@@ -74,6 +74,7 @@
     "nyc": "^17.0.0",
     "prettier": "^3.3.2",
     "protobufjs": "^7.3.2",
+    "semantic-release": "^24.0.0",
     "semver": "^7.6.2",
     "sinon": "^18.0.0",
     "ts-node": "^10.9.2",

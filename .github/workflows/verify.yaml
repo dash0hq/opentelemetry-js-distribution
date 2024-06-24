@@ -9,14 +9,13 @@ on:
 
 jobs:
   verify:
-
+    name: Lint & Test Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         node-version: [ '18.x',  '20.x', '21.x', '22.x' ]
 
-    name: Lint & Test Node.js ${{ matrix.node-version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -43,14 +42,12 @@ jobs:
           npm test
 
   verify-minimum-version-check:
-
+    name: Verify Minimum Version Check (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         node-version: [ '16.x' ]
-
-    name: Verify Minimum Version Check (Node.js ${{ matrix.node-version }})
 
     steps:
       - uses: actions/checkout@v4
@@ -71,3 +68,40 @@ jobs:
       - name: integration test
         run: |
           npm run test:integration
+
+  publish-release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+
+    # only release from the main branch
+    # actually, semantic-release does this check on its own anyway, but by adding a github ref check the job does not
+    # even get triggered, saving some GH action minutes.
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: write # for publishing GitHub releases
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+      id-token: write # to enable use of OIDC for npm provenance
+
+    needs:
+      - verify
+      - verify-minimum-version-check
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: 'npm'
+      - run: npm ci
+      - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
+        run: npm audit signatures
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release --dry-run
+
