@@ -14,16 +14,43 @@ import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 
-import { version } from '../package.json';
-
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { FileSpanExporter } from './util/FileSpanExporter';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from './util/environment';
 
+const logPrefix = 'Dash0 OpenTelemetry distribution for Node.js:';
 const debugOutput = hasOptedIn('DASH0_DEBUG');
 
-printDebugOutput('Dash0 OpenTelemetry distribution for Node.js: Starting NodeSDK.');
+let packageJson;
+let version: string;
+try {
+  // In the published package, the transpiled JS files are in dist/src/init.js, therefore the relative path to
+  // package.json is two levels above the directory of init.js.
+  packageJson = require('../../package.json');
+} catch (e1) {
+  try {
+    // In development, the directory is just src, therefore the relative path to package.json is only one level above.
+    packageJson = require('../package.json');
+  } catch (e2) {
+    printDebugStderr(
+      'Unable to find our own package.json file, will not transmit telemetry.distro.version. This warning can be safely ignored.',
+      e1,
+      e1,
+    );
+  }
+}
+// Since we read the package.json from two possible relative paths, we are extra-careful to make sure we actually are
+// reading from our own package.json file, hence the name check.
+if (packageJson && packageJson.name === '@dash0hq/opentelemetry') {
+  version = packageJson.version;
+} else {
+  printDebugStderr(
+    `Unexpected package name in our own package.json: ${packageJson.name}, will not transmit telemetry.distro.version. This warning can be safely ignored.`,
+  );
+}
+
+printDebugStdout('Starting NodeSDK.');
 
 let sdkShutdownHasBeenCalled = false;
 
@@ -48,7 +75,7 @@ sdk.start();
 createBootstrapSpanIfRequested();
 installProcessExitHandlers();
 
-printDebugOutput('Dash0 OpenTelemetry distribution for Node.js: NodeSDK started.');
+printDebugStdout('NodeSDK started.');
 
 function spanProcessors(): SpanProcessor[] {
   const spanProcessors: SpanProcessor[] = [
@@ -105,10 +132,13 @@ function createInstrumentationConfig(): any {
 }
 
 function resource() {
-  return new Resource({
+  const distroResourceAttributes: any = {
     'telemetry.distro.name': 'dash0-nodejs',
-    'telemetry.distro.version': version,
-  });
+  };
+  if (version) {
+    distroResourceAttributes['telemetry.distro.version'] = version;
+  }
+  return new Resource(distroResourceAttributes);
 }
 
 function resourceDetectors(): (Detector | DetectorSync)[] {
@@ -165,11 +195,9 @@ async function gracefulSdkShutdown(callProcessExit: boolean) {
     sdkShutdownHasBeenCalled = true;
     await sdk.shutdown();
 
-    printDebugOutput(
-      'Dash0 OpenTelemetry distribution for Node.js: OpenTelemetry SDK has been shut down successfully.',
-    );
+    printDebugStdout('OpenTelemetry SDK has been shut down successfully.');
   } catch (err) {
-    console.error('Dash0 OpenTelemetry distribution for Node.js: Error shutting down the OpenTelemetry SDK:', err);
+    console.error(logPrefix, 'Error shutting down the OpenTelemetry SDK:', err);
   } finally {
     if (callProcessExit) {
       process.exit(0);
@@ -199,8 +227,14 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
   });
 }
 
-function printDebugOutput(message: string) {
+function printDebugStdout(message: string, ...additional: any[]) {
   if (debugOutput) {
-    console.log(message);
+    console.log(logPrefix, message, ...additional);
+  }
+}
+
+function printDebugStderr(message: string, ...additional: any[]) {
+  if (debugOutput) {
+    console.error(logPrefix, message, ...additional);
   }
 }
