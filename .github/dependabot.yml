@@ -7,6 +7,10 @@ updates:
       day: "tuesday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    ignore:
+      - dependency-name: "chai"
+      - dependency-name: "eslint"
+      - dependency-name: "eslint-plugin-unused-imports"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
