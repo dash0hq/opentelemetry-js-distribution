@@ -67,12 +67,12 @@
     "@opentelemetry/sdk-trace-node": "^1.25.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.5.0",
-    "@grpc/grpc-js": "^1.10.9",
+    "@eslint/js": "^9.6.0",
+    "@grpc/grpc-js": "^1.10.10",
     "@types/chai": "^4.3.16",
     "@types/is-ci": "^3.0.4",
     "@types/mocha": "^10.0.7",
-    "@types/node": "^20.14.8",
+    "@types/node": "^20.14.9",
     "@types/semver": "^7.5.8",
     "@types/sinon": "^17.0.3",
     "chai": "^4.4.1",
@@ -82,7 +82,7 @@
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "eslint-plugin-unused-imports": "^3.2.0",
     "is-ci": "^3.0.1",
-    "mocha": "^10.4.0",
+    "mocha": "^10.5.2",
     "nyc": "^17.0.0",
     "prettier": "^3.3.2",
     "protobufjs": "^7.3.2",
@@ -91,9 +91,9 @@
     "semver": "^7.6.2",
     "sinon": "^18.0.0",
     "ts-node": "^10.9.2",
-    "ts-proto": "^1.180.0",
+    "ts-proto": "^1.181.0",
     "type-fest": "^4.20.1",
-    "typescript": "^5.5.2",
-    "typescript-eslint": "^7.13.1"
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^7.15.0"
   }
 }
