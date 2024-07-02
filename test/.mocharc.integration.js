@@ -3,7 +3,10 @@
 
 'use strict';
 
-/* global module */
+/* global module, require */
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const isCi = require('is-ci');
 
 module.exports = {
   extension: ['ts'],
@@ -14,5 +17,5 @@ module.exports = {
   require: ['ts-node/register'],
   slow: 3000,
   spec: ['test/**/*test.ts'],
-  timeout: 10000,
+  timeout: isCi ? 20000 : 10000,
 };
