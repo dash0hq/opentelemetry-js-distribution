@@ -13,6 +13,7 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
+import { KafkaJsInstrumentation } from '@opentelemetry/instrumentation-kafkajs';
 
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
@@ -63,7 +64,11 @@ const configuration: Partial<NodeSDKConfiguration> = {
   spanProcessors: spanProcessors(),
   metricReader: metricsReader(),
   logRecordProcessor: logRecordProcessor(),
-  instrumentations: [getNodeAutoInstrumentations(createInstrumentationConfig())],
+  instrumentations: [
+    //
+    getNodeAutoInstrumentations(createInstrumentationConfig()),
+    new KafkaJsInstrumentation(),
+  ],
   resource: resource(),
   resourceDetectors: resourceDetectors(),
 };
