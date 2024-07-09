@@ -11,6 +11,11 @@ updates:
       - dependency-name: "chai"
       - dependency-name: "eslint"
       - dependency-name: "eslint-plugin-unused-imports"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
     commit-message:
       # Make Dependabot use the prefix "fix" when updating production dependencies. This makes
       # semantic-release/commit-analyzer create a new release when production dependencies have been updated on main.
