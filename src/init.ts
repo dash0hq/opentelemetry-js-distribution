@@ -13,12 +13,12 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
-import { KafkaJsInstrumentation } from '@opentelemetry/instrumentation-kafkajs';
 
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { FileSpanExporter } from './util/FileSpanExporter';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from './util/environment';
+import { kafkaJsInstrumentation } from './util/kafkajs';
 
 const logPrefix = 'Dash0 OpenTelemetry distribution for Node.js:';
 const debugOutput = hasOptedIn('DASH0_DEBUG');
@@ -67,7 +67,7 @@ const configuration: Partial<NodeSDKConfiguration> = {
   instrumentations: [
     //
     getNodeAutoInstrumentations(createInstrumentationConfig()),
-    new KafkaJsInstrumentation(),
+    kafkaJsInstrumentation,
   ],
   resource: resource(),
   resourceDetectors: resourceDetectors(),

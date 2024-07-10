@@ -1,5 +1,5 @@
 {
-  "name": "dash0-app-under-test-empty-event-loop",
+  "name": "dash0-app-under-test-kafkajs",
   "version": "1.0.0",
   "private": true,
   "description": "",
@@ -8,5 +8,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bastian Krol <bastian.krol@dash0.com>",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@types/node": "^20.12.7",
+    "kafkajs": "^2.2.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
 }

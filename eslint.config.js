@@ -45,6 +45,7 @@ module.exports = tsEsLint.config(
         2,
       ],
       'mocha/no-exclusive-tests': 'error',
+      'no-case-declarations': 'off',
       'simpleImportSort/exports': 'error',
       'unusedImports/no-unused-imports': 'error',
     },
