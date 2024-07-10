@@ -34,6 +34,17 @@ export default class Sink {
     if (this.telemetry.traces.length > Sink.MAX_ITEMS) {
       throw new Error('Too many traces, please clear the mock collector between test runs.');
     }
+    traces.resource_spans?.forEach(resourceSpan => {
+      resourceSpan.scope_spans?.forEach(scopeSpan => {
+        scopeSpan.spans?.forEach(span => {
+          if (typeof span.kind === 'number') {
+            // Enumerations in protobuf are 1-based, while the JS constants are 0-based; we convert the raw protobuf
+            // data back to JS OTel conventions.
+            span.kind--;
+          }
+        });
+      });
+    });
     this.telemetry.traces.push(traces);
   }
 

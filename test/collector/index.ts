@@ -29,16 +29,19 @@ function registerIpcMessageListener() {
     const id = ipcRequest.id;
     switch (command) {
       case 'stats':
-        sendToParentProcess({ id, ...sink.stats() });
+        sendToParentProcess({ id, ok: true, ...sink.stats() });
         break;
       case 'telemetry':
-        sendToParentProcess({ id, ...sink.getTelemetry() });
+        sendToParentProcess({ id, ok: true, ...sink.getTelemetry() });
         break;
       case 'clear':
         sink.clear();
+        sendToParentProcess({ id, ok: true });
         break;
       default:
-        console.error(`Unknown message: ${inspect(message)}`);
+        const errorMsg = `Unknown message: ${inspect(message)}`;
+        sendToParentProcess({ id, error: errorMsg });
+        console.error(errorMsg);
     }
   });
 }

@@ -22,8 +22,7 @@ import runCommand from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
-
-const skipWhenNodeJsVersionIsSmallerThan = '18.0.0';
+import { skipWhenNodeJsVersionIsSmallerThan } from './constants';
 
 const { fail } = expect;
 
@@ -60,7 +59,7 @@ describe('attach', () => {
 
     it('should attach via --require and capture spans', async () => {
       await waitUntil(async () => {
-        const traces = await sendRequestAndWaitForTraceData();
+        const traces = await sendHttpRequestAndFetchTraceData();
         expectMatchingSpan(
           traces,
           [
@@ -79,7 +78,7 @@ describe('attach', () => {
 
     it('should attach via --require and capture metrics', async () => {
       await waitUntil(async () => {
-        const metrics = await sendRequestAndWaitForMetrics();
+        const metrics = await sendHttpRequestAndFetchMetrics();
         expectMatchingMetric(
           metrics,
           [
@@ -106,7 +105,7 @@ describe('attach', () => {
 
     it('should attach via --require and capture logs', async () => {
       await waitUntil(async () => {
-        const logs = await sendRequestAndWaitForLogRecords();
+        const logs = await sendHttpRequestAndFetchLogRecords();
         expectMatchingLogRecord(
           logs,
           [
@@ -146,7 +145,7 @@ describe('attach', () => {
 
     it('should attach via --require and detect the pod uid', async () => {
       await waitUntil(async () => {
-        const traces = await sendRequestAndWaitForTraceData();
+        const traces = await sendHttpRequestAndFetchTraceData();
         expectMatchingSpan(
           traces,
           [resource => expectResourceAttribute(resource, 'k8s.pod.uid', 'f57400dc-94ce-4806-a52e-d2726f448f15')],
@@ -174,7 +173,7 @@ describe('attach', () => {
 
     it('should attach via --require and derive a service name from the package.json file', async () => {
       await waitUntil(async () => {
-        const traces = await sendRequestAndWaitForTraceData();
+        const traces = await sendHttpRequestAndFetchTraceData();
         expectMatchingSpan(
           traces,
           [
@@ -209,7 +208,7 @@ describe('attach', () => {
       // (because the top level beforeHook is executed after this suite's before hook).
       await appUnderTest.start();
       await waitUntil(async () => {
-        const traces = await waitForTraceData();
+        const traces = await collector().fetchTraces();
         expectMatchingSpan(
           traces,
           [
@@ -246,7 +245,7 @@ describe('attach', () => {
       await appUnderTest.start();
       await appUnderTest.stop();
       await waitUntil(async () => {
-        const traces = await waitForTraceData();
+        const traces = await collector().fetchTraces();
         expectMatchingSpan(
           traces,
           [
@@ -264,7 +263,7 @@ describe('attach', () => {
       await appUnderTest.start();
       await appUnderTest.stop('SIGINT');
       await waitUntil(async () => {
-        const traces = await waitForTraceData();
+        const traces = await collector().fetchTraces();
         expectMatchingSpan(
           traces,
           [
@@ -300,7 +299,7 @@ describe('attach', () => {
     it('should flush telemetry before process exit due to empty event loop', async () => {
       await appUnderTest.start();
       await waitUntil(async () => {
-        const traces = await waitForTraceData();
+        const traces = await collector().fetchTraces();
         expectMatchingSpan(
           traces,
           [
@@ -353,7 +352,7 @@ describe('attach', () => {
       // });
 
       await waitUntil(async () => {
-        await sendRequestAndVerifyResponse();
+        await sendHttpRequestAndVerifyResponse();
         const spanFile = await verifyFileHasBeenCreated(spanFilename);
         const spans = [];
         for await (const line of spanFile.readLines()) {
@@ -396,7 +395,7 @@ describe('attach', () => {
 
     it('should do nothing if disabled', async () => {
       await delay(1000);
-      await sendRequestAndVerifyResponse();
+      await sendHttpRequestAndVerifyResponse();
       await delay(2000);
 
       if (await collector().hasTelemetry()) {
@@ -405,47 +404,26 @@ describe('attach', () => {
     });
   });
 
-  async function sendRequestAndWaitForTraceData() {
-    await sendRequestAndVerifyResponse();
-    return waitForTraceData();
+  async function sendHttpRequestAndFetchTraceData() {
+    await sendHttpRequestAndVerifyResponse();
+    return collector().fetchTraces();
   }
 
-  async function sendRequestAndWaitForMetrics() {
-    await sendRequestAndVerifyResponse();
-    return waitForMetrics();
+  async function sendHttpRequestAndFetchMetrics() {
+    await sendHttpRequestAndVerifyResponse();
+    return collector().fetchMetrics();
   }
 
-  async function sendRequestAndWaitForLogRecords() {
-    await sendRequestAndVerifyResponse();
-    return waitForLogRecords();
+  async function sendHttpRequestAndFetchLogRecords() {
+    await sendHttpRequestAndVerifyResponse();
+    return collector().fetchLogRecords();
   }
 
-  async function sendRequestAndVerifyResponse() {
+  async function sendHttpRequestAndVerifyResponse() {
     const response = await fetch(`http://localhost:${appPort}/ohai`);
     expect(response.status).to.equal(200);
     const responsePayload = await response.json();
     expect(responsePayload).to.deep.equal({ message: 'We make Observability easy for every developer.' });
-  }
-
-  async function waitForTraceData() {
-    if (!(await collector().hasTraces())) {
-      throw new Error('The collector never received any spans.');
-    }
-    return (await collector().fetchTelemetry()).traces;
-  }
-
-  async function waitForMetrics() {
-    if (!(await collector().hasMetrics())) {
-      throw new Error('The collector never received any metrics.');
-    }
-    return (await collector().fetchTelemetry()).metrics;
-  }
-
-  async function waitForLogRecords() {
-    if (!(await collector().hasLogs())) {
-      throw new Error('The collector never received any log records.');
-    }
-    return (await collector().fetchTelemetry()).logs;
   }
 
   async function verifyFileHasBeenCreated(filename: string): Promise<FileHandle> {

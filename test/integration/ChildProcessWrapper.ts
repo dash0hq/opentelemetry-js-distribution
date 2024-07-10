@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { inspect } from 'node:util';
 import { ChildProcess, fork, ForkOptions } from 'node:child_process';
 import EventEmitter from 'node:events';
 import fs from 'node:fs/promises';
@@ -138,15 +139,20 @@ export default class ChildProcessWrapper {
     });
   }
 
-  async sendRequest(message: object): Promise<object> {
-    return new Promise(resolve => {
+  async sendIpcRequest(message: object): Promise<any> {
+    return new Promise((resolve, reject) => {
       const requestId = this.nextIpcRequestId++;
-      this.childProcess?.send({
+      const messageWithId = {
         id: requestId,
         ...message,
-      });
+      };
+      this.childProcess?.send(messageWithId);
       const eventName = String(requestId);
       this.responseEmitter.once(eventName, response => {
+        if (!response.ok) {
+          reject(new Error(`IPC request ${inspect(messageWithId)} did not succeed: ${inspect(response)}`));
+          return;
+        }
         resolve(response);
       });
     });
