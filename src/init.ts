@@ -28,16 +28,18 @@ let version: string;
 try {
   // In the published package, the transpiled JS files are in dist/src/init.js, therefore the relative path to
   // package.json is two levels above the directory of init.js.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   packageJson = require('../../package.json');
 } catch (e1) {
   try {
     // In development, the directory is just src, therefore the relative path to package.json is only one level above.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     packageJson = require('../package.json');
   } catch (e2) {
     printDebugStderr(
       'Unable to find our own package.json file, will not transmit telemetry.distro.version. This warning can be safely ignored.',
       e1,
-      e1,
+      e2,
     );
   }
 }

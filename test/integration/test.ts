@@ -339,6 +339,7 @@ describe('attach', () => {
       try {
         await unlink(spanFilename);
         // await unlink(metricsFilename);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         // ignore
       }
@@ -358,6 +359,7 @@ describe('attach', () => {
         for await (const line of spanFile.readLines()) {
           try {
             spans.push(JSON.parse(line));
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (error) {
             // ignore malformed lines
           }

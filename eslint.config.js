@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /* global module, require */
-/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 'use strict';
 
@@ -48,6 +48,18 @@ module.exports = tsEsLint.config(
       'no-case-declarations': 'off',
       'simpleImportSort/exports': 'error',
       'unusedImports/no-unused-imports': 'error',
+    },
+  },
+  {
+    files: ['src/**/*_test.*', 'test/**/*'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
+  {
+    files: ['**/.mocharc.*'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );

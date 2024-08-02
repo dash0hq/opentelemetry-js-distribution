@@ -66,6 +66,7 @@ async function findAndParsePackageJsonFromEntrypoint(): Promise<PackageJson | nu
   let entrypointStat;
   try {
     entrypointStat = await stat(entrypoint);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     return null;
   }
@@ -140,6 +141,7 @@ async function readAndParse(directory: string, packageJsonPath: string): Promise
   let packageJsonContent;
   try {
     packageJsonContent = await readFile(packageJsonPath, { encoding: 'utf8' });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     // package.json candidate may not be readable (no permissions)
     return traverseToParent(directory);
@@ -150,6 +152,7 @@ async function readAndParse(directory: string, packageJsonPath: string): Promise
 async function parse(directory: string, packageJsonContent: string): Promise<PackageJson | null> {
   try {
     return JSON.parse(packageJsonContent);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     return traverseToParent(directory);
   }
