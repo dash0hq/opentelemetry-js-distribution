@@ -95,6 +95,7 @@ export default class PodUidDetector implements DetectorSync {
     let etcHosts: string;
     try {
       etcHosts = String(await readFile(etcHostsFileName, { encoding: 'utf8' }));
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return false;
     }
@@ -112,6 +113,7 @@ export default class PodUidDetector implements DetectorSync {
     let content;
     try {
       content = await readFile(filename, { encoding: 'utf8' });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return [];
     }

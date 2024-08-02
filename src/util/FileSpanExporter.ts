@@ -69,6 +69,7 @@ export class FileSpanExporter implements SpanExporter {
     let fileHandle;
     try {
       fileHandle = await this.file;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       if (done) {
         done({ code: ExportResultCode.FAILED });

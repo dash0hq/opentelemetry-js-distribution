@@ -73,7 +73,7 @@
     "@types/chai": "^4.3.16",
     "@types/is-ci": "^3.0.4",
     "@types/mocha": "^10.0.7",
-    "@types/node": "^20.14.9",
+    "@types/node": "^22.0.3",
     "@types/semver": "^7.5.8",
     "@types/sinon": "^17.0.3",
     "chai": "^4.4.1",
@@ -95,6 +95,6 @@
     "ts-proto": "^1.181.0",
     "type-fest": "^4.20.1",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^7.15.0"
+    "typescript-eslint": "^8.0.0"
   }
 }
