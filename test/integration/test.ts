@@ -177,8 +177,8 @@ describe('attach', () => {
         expectMatchingSpan(
           traces,
           [
-            resource =>
-              expectResourceAttribute(resource, 'service.name', 'dash0-app-under-test-express-typescript@1.0.0'),
+            resource => expectResourceAttribute(resource, 'service.name', 'dash0-app-under-test-express-typescript'),
+            resource => expectResourceAttribute(resource, 'service.version', '1.0.0'),
           ],
           [
             span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
