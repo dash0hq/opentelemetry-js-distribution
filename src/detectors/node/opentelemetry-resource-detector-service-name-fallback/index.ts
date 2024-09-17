@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { DetectorSync, Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
 import { readPackageJson } from './packageJsonUtil';
 
@@ -15,7 +15,7 @@ export default class ServiceNameFallbackDetector implements DetectorSync {
     if (
       hasOptedOutOfServiceNameFallbackDetection() ||
       hasOTelServiceNameSet() ||
-      hasServiceNameSetViaResourceAttributesThing()
+      hasServiceNameSetViaOTelResourceAttributesEnvVar()
     ) {
       return {};
     }
@@ -24,7 +24,10 @@ export default class ServiceNameFallbackDetector implements DetectorSync {
     if (!packageJson) {
       return {};
     }
-    return { [SEMRESATTRS_SERVICE_NAME]: `${packageJson.name}@${packageJson.version}` };
+    return {
+      [SEMRESATTRS_SERVICE_NAME]: packageJson.name,
+      [SEMRESATTRS_SERVICE_VERSION]: packageJson.version,
+    };
   }
 }
 
@@ -38,7 +41,7 @@ function hasOTelServiceNameSet() {
   return otelServiceName && otelServiceName.trim() !== '';
 }
 
-function hasServiceNameSetViaResourceAttributesThing() {
+function hasServiceNameSetViaOTelResourceAttributesEnvVar() {
   const otelResourceAttributes = process.env.OTEL_RESOURCE_ATTRIBUTES;
   if (otelResourceAttributes) {
     const rawAttributes: string[] = otelResourceAttributes.split(',');

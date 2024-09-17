@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { expect } from 'chai';
 import Sinon from 'sinon';
 import sinon from 'sinon';
@@ -57,11 +57,12 @@ describe('service name fallback', () => {
     });
   });
 
-  it('sets a service name based on package.json attributes', async () => {
+  it('sets a service name and version based on package.json attributes', async () => {
     givenAValidPackageJsonFile();
     const result = serviceNameFallback.detect();
     const attributes = await waitForAsyncDetection(result);
-    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test@2.13.47');
+    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test');
+    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_VERSION, '2.13.47');
   });
 
   it('does not set a service name if DASH0_AUTOMATIC_SERVICE_NAME is false', async () => {
@@ -85,7 +86,8 @@ describe('service name fallback', () => {
     process.env.OTEL_SERVICE_NAME = '   ';
     const result = serviceNameFallback.detect();
     const attributes = await waitForAsyncDetection(result);
-    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test@2.13.47');
+    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test');
+    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_VERSION, '2.13.47');
   });
 
   it('does not set a service name if OTEL_RESOURCE_ATTRIBUTES has the service.name key', async () => {
@@ -101,7 +103,8 @@ describe('service name fallback', () => {
     process.env.OTEL_RESOURCE_ATTRIBUTES = 'key1=value,key2=value';
     const result = serviceNameFallback.detect();
     const attributes = await waitForAsyncDetection(result);
-    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test@2.13.47');
+    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test');
+    expect(attributes).to.have.property(SEMRESATTRS_SERVICE_VERSION, '2.13.47');
   });
 
   it('does not set a service name if no package.json can be found', async () => {
