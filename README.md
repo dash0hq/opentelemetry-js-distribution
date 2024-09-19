@@ -10,9 +10,15 @@ Configuration
 
 ### <a id="DASH0_AUTOMATIC_SERVICE_NAME">DASH0_AUTOMATIC_SERVICE_NAME</a>
 
-If no `OTEL_SERVICE_NAME` has been set, a service name is automatically derived by reading the main `package.json` file
-(if it is present) as `${packageJson.name}@${packageJson.version}`.
-This can be disabled either by setting `OTEL_SERVICE_NAME` or by setting `DASH0_AUTOMATIC_SERVICE_NAME=false`.
+If no service name has been set, a service name and a service version are automatically derived by reading the main `package.json` file
+(if it is present):
+* The `service.name` resource attribute will be set to the value of the `name` attribute found in the `package.json` file.
+* The `service.version` resource attribute will be set to the value of the `version` attribute found in the `package.json` file.
+
+This behavior can be disabled either
+* by setting an explicit service name using the `OTEL_SERVICE_NAME` environment variable,
+* by setting an explicit service name using the `OTEL_RESOURCE_ATTRIBUTES` environment variable (using the `service.name` attribute key), or
+* by setting the environment variable `DASH0_AUTOMATIC_SERVICE_NAME=false`.
 
 ### <a id="DASH0_BOOTSTRAP_SPAN">DASH0_BOOTSTRAP_SPAN</a>
 
