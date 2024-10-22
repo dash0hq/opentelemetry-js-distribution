@@ -54,7 +54,7 @@
   "homepage": "https://github.com/dash0hq/opentelemetry-js-distribution#readme",
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/auto-instrumentations-node": "^0.50.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.51.0",
     "@opentelemetry/exporter-logs-otlp-proto": "^0.53.0",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.53.0",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.53.0",
