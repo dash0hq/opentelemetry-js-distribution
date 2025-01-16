@@ -37,10 +37,12 @@ function init() {
   }
 }
 
-if (process.env.DASH0_DISABLE == null || process.env.DASH0_DISABLE.toLowerCase() !== 'true') {
-  init();
-} else {
+if (process.env.DASH0_DISABLE != null && process.env.DASH0_DISABLE.toLowerCase() === 'true') {
   logProhibitiveError(`The distribution has been disabled by setting DASH0_DISABLE=${process.env.DASH0_DISABLE}.`);
+} else if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null) {
+  logProhibitiveError(`DASH0_OTEL_COLLECTOR_BASE_URL is not set.`);
+} else {
+  init();
 }
 
 function logProhibitiveError(message: string) {

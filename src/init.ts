@@ -57,10 +57,8 @@ printDebugStdout('Starting NodeSDK.');
 
 let sdkShutdownHasBeenCalled = false;
 
-let baseUrl = 'http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318';
-if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL) {
-  baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
-}
+// Note: There is a check in index.ts that this env var is set.
+const baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
 
 const configuration: Partial<NodeSDKConfiguration> = {
   spanProcessors: spanProcessors(),

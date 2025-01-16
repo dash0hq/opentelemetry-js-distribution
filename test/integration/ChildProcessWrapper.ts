@@ -26,6 +26,7 @@ const emulateKubernetesPath = path.join(repoRoot, 'test', 'integration', 'emulat
 export default class ChildProcessWrapper {
   private childProcess?: ChildProcess;
   private ready: boolean;
+  private terminated: boolean;
   private options: ChildProcessWrapperOptions;
   private nextIpcRequestId: number;
   private responseEmitter: ResponseEmitter;
@@ -36,6 +37,7 @@ export default class ChildProcessWrapper {
       this.options.label = this.options.path;
     }
     this.ready = false;
+    this.terminated = false;
     this.nextIpcRequestId = 0;
     this.responseEmitter = new ResponseEmitter();
   }
@@ -44,6 +46,9 @@ export default class ChildProcessWrapper {
     const { modulePath, forkOptions } = await this.createForkOptions();
     this.childProcess = fork(modulePath, this.options.args ?? [], forkOptions);
     this.listenToIpcMessages();
+    this.childProcess.on('exit', () => {
+      this.terminated = true;
+    });
     this.echoOutputStreams();
     await this.waitUntilReady();
   }
@@ -115,6 +120,14 @@ export default class ChildProcessWrapper {
     await waitUntil(() => {
       if (!this.ready) {
         throw new Error('Child process has not started.');
+      }
+    }, this.options.waitForReadyRetryOptions);
+  }
+
+  async waitUntilTerminated() {
+    await waitUntil(() => {
+      if (!this.terminated) {
+        throw new Error('Child process has not terminated yet.');
       }
     }, this.options.waitForReadyRetryOptions);
   }
