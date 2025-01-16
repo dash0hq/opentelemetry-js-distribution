@@ -314,6 +314,36 @@ describe('attach', () => {
     });
   });
 
+  describe('timeout for flushing telemetry', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    beforeEach(async () => {
+      const appConfiguration = {
+        path: 'test/apps/empty-event-loop',
+        label: 'app',
+        useTsNode: true,
+        useDistro: true,
+        env: {
+          ...process.env,
+          // Weird finding: When setting DASH0_OTEL_COLLECTOR_BASE_URL to any url where the host name ends in .local
+          // (like http://non-reachable-dns-name.local:4318), the timeout of 500 ms for flushing telemetry is ignored
+          // because the DNS lookup blocks for 5 seconds. This apparently happens on Mac as well as on Linux/in Docker.
+          DASH0_OTEL_COLLECTOR_BASE_URL: 'http://non-reachable-host.url:4318',
+          DASH0_BOOTSTRAP_SPAN: 'Dash0 Test Bootstrap Span',
+        },
+      };
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+    });
+
+    it('should let process terminate after timeout', async () => {
+      await appUnderTest.start();
+      const startedAt = Date.now();
+      await appUnderTest.waitUntilTerminated();
+      const terminatedAt = Date.now();
+      expect(terminatedAt - startedAt).to.be.lessThan(1000);
+    });
+  });
+
   describe('print spans to file', () => {
     let appUnderTest: ChildProcessWrapper;
     const spanFilename = join(__dirname, 'spans.json');
@@ -396,6 +426,31 @@ describe('attach', () => {
     });
 
     it('should do nothing if disabled', async () => {
+      await delay(1000);
+      await sendHttpRequestAndVerifyResponse();
+      await delay(2000);
+
+      if (await collector().hasTelemetry()) {
+        fail('The collector received telemetry data although it should not have received anything.');
+      }
+    });
+  });
+
+  describe('disable when export endpoint is not set', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    before(async () => {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      delete appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL;
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+      await appUnderTest.start();
+    });
+
+    after(async () => {
+      await appUnderTest.stop();
+    });
+
+    it('should do nothing if DASH0_OTEL_COLLECTOR_BASE_URL is not set', async () => {
       await delay(1000);
       await sendHttpRequestAndVerifyResponse();
       await delay(2000);
