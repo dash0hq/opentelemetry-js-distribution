@@ -176,29 +176,40 @@ function createBootstrapSpanIfRequested() {
 
 function installProcessExitHandlers() {
   if (hasOptedIn('DASH0_FLUSH_ON_SIGTERM_SIGINT')) {
+    printDebugStdout('Installing process exit handler for SIGTERM/SIGINT.');
     ['SIGTERM', 'SIGINT'].forEach(signal => {
-      process.once(signal, onProcessExit.bind(null, true));
+      process.once(signal, onProcessExit.bind(null, signal));
     });
   }
 
   if (!hasOptedOut('DASH0_FLUSH_ON_EMPTY_EVENT_LOOP')) {
-    process.once('beforeExit', onProcessExit.bind(null, false));
+    printDebugStdout('Installing process exit handler.');
+    process.once('beforeExit', onProcessExit.bind(null));
   }
 }
 
-async function onProcessExit(callProcessExit: boolean) {
-  await executePromiseWithTimeout(gracefulSdkShutdown(callProcessExit), 500, callProcessExit);
+async function onProcessExit(signal?: string) {
+  if (signal) {
+    printDebugStdout('Running process exit handler for signal:', signal);
+  } else {
+    printDebugStdout('Running process exit handler.');
+  }
+  await executePromiseWithTimeout(gracefulSdkShutdown(signal), 500, signal);
 }
 
-async function gracefulSdkShutdown(callProcessExit: boolean) {
+async function gracefulSdkShutdown(signal?: string) {
   try {
     if (sdkShutdownHasBeenCalled) {
-      if (callProcessExit) {
-        process.exit(0);
+      printDebugStdout('Ignoring repeated request for graceful SDK shutdown.');
+      if (signal) {
+        // re-raise the signal to exit the process
+        printDebugStdout('Re-raising signal', signal);
+        process.kill(process.pid, signal);
       }
       return;
     }
 
+    printDebugStdout('Triggering graceful SDK shutdown.');
     sdkShutdownHasBeenCalled = true;
     await sdk.shutdown();
 
@@ -206,13 +217,15 @@ async function gracefulSdkShutdown(callProcessExit: boolean) {
   } catch (err) {
     console.error(logPrefix, 'Error shutting down the OpenTelemetry SDK:', err);
   } finally {
-    if (callProcessExit) {
-      process.exit(0);
+    if (signal) {
+      // re-raise the signal to exit the process
+      printDebugStdout('Re-raising signal', signal);
+      process.kill(process.pid, signal);
     }
   }
 }
 
-function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, callProcessExit: boolean) {
+function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, signal?: string) {
   let setTimeoutId: NodeJS.Timeout;
   const timeoutPromise = new Promise(resolve => {
     setTimeoutId = setTimeout(() => {
@@ -228,8 +241,10 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
     if (setTimeoutId) {
       clearTimeout(setTimeoutId);
     }
-    if (callProcessExit) {
-      process.exit(0);
+    if (signal) {
+      // re-raise the signal to exit the process
+      printDebugStdout('Re-raising signal', signal);
+      process.kill(process.pid, signal);
     }
   });
 }
