@@ -90,7 +90,7 @@
     "rimraf": "^6.0.0",
     "semantic-release": "^24.0.0",
     "semver": "^7.6.2",
-    "sinon": "^19.0.2",
+    "sinon": "^20.0.0",
     "ts-node": "^10.9.2",
     "ts-proto": "^2.0.2",
     "type-fest": "^4.20.1",
