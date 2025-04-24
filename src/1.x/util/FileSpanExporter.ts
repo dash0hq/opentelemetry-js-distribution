@@ -4,8 +4,8 @@
 import { FileHandle, open } from 'node:fs/promises';
 import { EOL } from 'os';
 
-import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from '@opentelemetry/core';
-import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from '@opentelemetry/core-1.x';
+import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base-1.x';
 
 /**
  * This is implementation of {@link SpanExporter} that prints spans to a file.

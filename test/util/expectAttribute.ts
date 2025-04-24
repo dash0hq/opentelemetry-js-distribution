@@ -14,40 +14,52 @@ interface WithAttributes {
   attributes: KeyValue[];
 }
 
-export function expectAttribute(object: WithAttributes, key: string, expectedValue: any, label: string) {
+export function expectAttribute(
+  object: WithAttributes,
+  keyOrKeys: string | string[],
+  expectedValue: any,
+  label: string,
+) {
   const attributes = object.attributes;
   let found = false;
   attributes.forEach(attribute => {
     const a = attribute.key;
-    if (a === key) {
-      const actualValue = getValue(attribute);
-      expect(actualValue).to.equal(
-        expectedValue,
-        `Expected ${label} to have attribute ${key} with value ${expectedValue}, but the attribute has value ${actualValue}.`,
-      );
-      found = true;
-    }
+    const keys = typeof keyOrKeys === 'string' ? [keyOrKeys] : keyOrKeys;
+    keys.forEach(k => {
+      if (a === k) {
+        const actualValue = getValue(attribute);
+        expect(actualValue).to.equal(
+          expectedValue,
+          `Expected ${label} to have attribute ${keyOrKeys} with value ${expectedValue}, but the attribute has value ${actualValue}.`,
+        );
+        found = true;
+      }
+    });
   });
   if (!found) {
     fail(
-      `Expected ${label} to have attribute ${key} with value ${expectedValue}, but no such attribute exists on the ${label}.`,
+      `Expected ${label} to have attribute ${keyOrKeys} with value ${expectedValue}, but no such attribute exists on the ${label}.`,
     );
   }
 }
 
-export function expectResourceAttribute(resource: Resource, key: string, expectedValue: any) {
+export function expectResourceAttribute(resource: Resource, key: string | string[], expectedValue: any) {
   expectAttribute(resource, key, expectedValue, 'resource');
 }
 
-export function expectSpanAttribute(span: Span, key: string, expectedValue: any) {
+export function expectSpanAttribute(span: Span, key: string | string[], expectedValue: any) {
   expectAttribute(span, key, expectedValue, 'span');
 }
 
-export function expectMetricDataPointAttribute(dataPoint: HistogramDataPoint, key: string, expectedValue: any) {
+export function expectMetricDataPointAttribute(
+  dataPoint: HistogramDataPoint,
+  key: string | string[],
+  expectedValue: any,
+) {
   expectAttribute(dataPoint, key, expectedValue, 'log record');
 }
 
-export function expectLogRecordAttribute(logRecord: LogRecord, key: string, expectedValue: any) {
+export function expectLogRecordAttribute(logRecord: LogRecord, key: string | string[], expectedValue: any) {
   expectAttribute(logRecord, key, expectedValue, 'log record');
 }
 

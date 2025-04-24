@@ -4,6 +4,7 @@
 import { SpanKind } from '@opentelemetry/api';
 import { expect } from 'chai';
 import { FileHandle, open, readFile, unlink } from 'node:fs/promises';
+import os from 'node:os';
 import { join } from 'node:path';
 import semver from 'semver';
 
@@ -18,7 +19,7 @@ import {
 import { expectMatchingLogRecord } from '../util/expectMatchingLogRecord';
 import { expectMatchingMetric } from '../util/expectMatchingMetric';
 import { expectMatchingSpan, expectMatchingSpanInFileDump } from '../util/expectMatchingSpan';
-import runCommand from '../util/runCommand';
+import { runNpmCommand } from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
@@ -36,7 +37,7 @@ describe('attach', () => {
       return;
     }
 
-    await runCommand('npm ci', 'test/apps/express-typescript');
+    await runNpmCommand('ci', 'test/apps/express-typescript');
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
 
@@ -385,8 +386,10 @@ describe('attach', () => {
       await waitUntil(async () => {
         await sendHttpRequestAndVerifyResponse();
         const spanFile = await verifyFileHasBeenCreated(spanFilename);
+        const content = await spanFile.readFile({ encoding: 'utf8' });
         const spans = [];
-        for await (const line of spanFile.readLines()) {
+        const lines = content.split(os.EOL);
+        for (const line of lines) {
           try {
             spans.push(JSON.parse(line));
             // eslint-disable-next-line @typescript-eslint/no-unused-vars

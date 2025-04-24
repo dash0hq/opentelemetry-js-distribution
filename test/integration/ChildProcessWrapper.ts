@@ -6,6 +6,8 @@ import { ChildProcess, fork, ForkOptions } from 'node:child_process';
 import EventEmitter from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import semver from 'semver';
+
 import waitUntil, { RetryOptions } from '../util/waitUntil';
 
 export interface ChildProcessWrapperOptions {
@@ -117,11 +119,21 @@ export default class ChildProcessWrapper {
   }
 
   async waitUntilReady() {
+    let waitForReadyRetryOptions = this.options.waitForReadyRetryOptions;
+    if (!waitForReadyRetryOptions && semver.lt(process.version, '16.0.0')) {
+      // Under Node.js 14 (used for the minimum version), starting a process takes quite a while. Might be because
+      // locally on Mac Silicon this is executed under emulation, that is, for example in a shell started with
+      // arch -x86_64 zsh (because there is no Node.js 14 binary for arm).
+      waitForReadyRetryOptions = {
+        maxAttempts: 40,
+        waitBetweenRetries: 300,
+      };
+    }
     await waitUntil(() => {
       if (!this.ready) {
         throw new Error('Child process has not started.');
       }
-    }, this.options.waitForReadyRetryOptions);
+    }, waitForReadyRetryOptions);
   }
 
   async waitUntilTerminated() {
@@ -203,6 +215,10 @@ export function defaultAppConfiguration(appPort: number): ChildProcessWrapperOpt
       OTEL_METRIC_EXPORT_TIMEOUT: '90',
 
       DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
+
+      // helpful options for troubleshooting integration tests:
+      // DASH0_DEBUG_PRINT_SPANS: 'true',
+      // OTEL_LOG_LEVEL: 'debug',
     },
   };
 }

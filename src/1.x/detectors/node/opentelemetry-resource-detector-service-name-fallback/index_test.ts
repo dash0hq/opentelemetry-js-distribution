@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Resource } from '@opentelemetry/resources';
+import { Resource } from '@opentelemetry/resources-1.x';
 import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { expect } from 'chai';
 import Sinon from 'sinon';
 import sinon from 'sinon';
 
 import ServiceNameFallbackDetector from './index';
-import * as packageJsonUtil from './packageJsonUtil';
+import * as packageJsonUtil from '../../../../util/packageJsonUtil';
 
 const packageJson = {
   name: '@example/app-under-test',

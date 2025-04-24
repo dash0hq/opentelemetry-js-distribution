@@ -3,11 +3,16 @@
 
 'use strict';
 
-/* global module */
+/* global module, process, require */
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const semver = require('semver');
 
 module.exports = {
   extension: ['ts'],
   recursive: true,
   require: ['ts-node/register'],
-  spec: ['src/**/*test.ts'],
+  spec: semver.lt(process.version, '18.19.0')
+    ? ['src/1.x/**/*test.ts', 'src/util/**/*test.ts']
+    : ['src/2.x/**/*test.ts', 'src/util/**/*test.ts'],
 };

@@ -58,7 +58,7 @@ export function findMatchingItemsInServiceRequest<SR, R, S, I>(
         } catch (error) {
           // This resource did not pass all checks, try the next one. Memorize the resource if it has been the best
           // match so far.
-          if (passedResourceChecks > bestCandidate.passedChecks) {
+          if (passedResourceChecks > bestCandidate.passedChecks || bestCandidate.item == null) {
             bestCandidate = {
               item: resourceItem,
               passedChecks: passedResourceChecks,
@@ -194,7 +194,7 @@ export function processFindItemsResult<T>(matchResult: MatchingItemsResult<T>, i
   } else if (matchResult.bestCandidate) {
     const bestCandidate = matchResult.bestCandidate;
     throw new Error(
-      `No matching ${itemLabel} has been found. The best candidate passed ${bestCandidate.passedChecks} checks and failed check ${bestCandidate.passedChecks + 1} with error ${bestCandidate.error}. This is the best candidate:\n${JSON.stringify(bestCandidate.item, null, 2)}`,
+      `No matching ${itemLabel} has been found. The best candidate passed ${bestCandidate.passedChecks} checks and failed check ${bestCandidate.passedChecks + 1} with error "${bestCandidate.error}". This is the best candidate:\n${JSON.stringify(bestCandidate.item, null, 2)}`,
     );
   } else {
     throw new Error(`No matching ${itemLabel} has been found.`);

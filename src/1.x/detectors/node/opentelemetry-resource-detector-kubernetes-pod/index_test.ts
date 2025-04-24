@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Resource } from '@opentelemetry/resources';
+import { Resource } from '@opentelemetry/resources-1.x';
 import { SEMRESATTRS_K8S_POD_UID } from '@opentelemetry/semantic-conventions';
 import { expect } from 'chai';
 import fs from 'node:fs/promises';
