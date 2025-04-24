@@ -7,7 +7,7 @@ import semver from 'semver';
 
 import { expectResourceAttribute, expectSpanAttribute } from '../util/expectAttribute';
 import { expectMatchingSpan } from '../util/expectMatchingSpan';
-import runCommand from '../util/runCommand';
+import { runNpmCommand } from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
@@ -27,7 +27,7 @@ describe('kafka tracing', () => {
       return;
     }
 
-    await runCommand('npm ci', 'test/apps/kafkajs');
+    await runNpmCommand('ci', 'test/apps/kafkajs');
 
     appUnderTest = new ChildProcessWrapper(appConfiguration);
     await appUnderTest.start();
@@ -56,7 +56,7 @@ describe('kafka tracing', () => {
         [
           span => expect(span.kind).to.equal(SpanKind.PRODUCER, 'span kind should be producer'),
           span => expectSpanAttribute(span, 'messaging.system', 'kafka'),
-          span => expectSpanAttribute(span, 'messaging.destination', 'test-topic'),
+          span => expectSpanAttribute(span, ['messaging.destination', 'messaging.destination.name'], 'test-topic'),
         ],
       );
     });
@@ -75,7 +75,7 @@ describe('kafka tracing', () => {
         [
           span => expect(span.kind).to.equal(SpanKind.CONSUMER, 'span kind should be consumer'),
           span => expectSpanAttribute(span, 'messaging.system', 'kafka'),
-          span => expectSpanAttribute(span, 'messaging.destination', 'test-topic'),
+          span => expectSpanAttribute(span, ['messaging.destination', 'messaging.destination.name'], 'test-topic'),
         ],
       );
     });

@@ -1,37 +1,46 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-const majorVersionLowerBound = 18;
-const majorVersionTestedUpperBound = 22;
+import semver from 'semver';
+
+const lowerBound = '14.0.0';
+const versionMapping = [
+  // OpenTelemetry JS SDK 1.x, supports Node.js 14.x - 18.18.2, and 20.0.0-20.5.1.
+  ['>=16.0.0 <18.19.0', './1.x/init'],
+  ['>=20.0.0 <20.6.0', './1.x/init'],
+  // OpenTelemetry JS SDK 2.x, supports Node.js >= 18.19.0 || >= 20.6.0
+  ['>=18.19.0', './2.x/init'],
+];
+const untestedVersionRange = '>=24.0.0';
+
 const prefix = 'Dash0 OpenTelemetry Distribution';
 
 function init() {
   try {
     const nodeJsRuntimeVersion = process.version;
-    const match = nodeJsRuntimeVersion.match(/v(?<majorVersion>\d+)\.(?:\d+)\.(?:\d+)/);
-    if (!match?.groups) {
-      logProhibitiveError(`Cannot parse Node.js runtime version ${nodeJsRuntimeVersion}.`);
-      return;
-    }
-    const majorVersion = parseInt(match.groups.majorVersion, 10);
-    if (isNaN(majorVersion)) {
-      logProhibitiveError(`Cannot parse Node.js runtime version ${nodeJsRuntimeVersion}.`);
-      return;
-    }
-    if (majorVersion < majorVersionLowerBound) {
+
+    if (semver.lt(nodeJsRuntimeVersion, lowerBound)) {
       logProhibitiveError(
-        `The distribution does not support this Node.js runtime version (${nodeJsRuntimeVersion}). The minimum supported version is Node.js ${majorVersionLowerBound}.0.0.`,
+        `The distribution does not support this Node.js runtime version (${nodeJsRuntimeVersion}). The minimum supported version is Node.js ${lowerBound}.`,
       );
       return;
     }
-    if (majorVersion > majorVersionTestedUpperBound) {
+    if (semver.satisfies(nodeJsRuntimeVersion, untestedVersionRange)) {
       logWarning(
-        `Please note: The distribution has not been explicitly tested with this Node.js runtime version (${nodeJsRuntimeVersion}). The maximum tested version is Node.js ${majorVersionTestedUpperBound}.`,
+        `Please note: The distribution has not been explicitly tested with this Node.js runtime version (${nodeJsRuntimeVersion}), or any version ${untestedVersionRange}.`,
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('./init');
+    for (let i = 0; i < versionMapping.length; i++) {
+      const [semverRange, initFile] = versionMapping[i];
+      if (semver.satisfies(nodeJsRuntimeVersion, semverRange)) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require(initFile);
+        return;
+      }
+    }
+
+    logProhibitiveError(`No matching version range found for Node.js runtime version ${nodeJsRuntimeVersion}.`);
   } catch (e) {
     logProhibitiveError(`Initialization failed: ${e}`);
   }

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { DetectorSync, Resource } from '@opentelemetry/resources';
-import { ResourceAttributes } from '@opentelemetry/resources/build/src/types';
+import { DetectorSync, Resource } from '@opentelemetry/resources-1.x';
+import { ResourceAttributes } from '@opentelemetry/resources-1.x/build/src/types';
 import { SEMRESATTRS_K8S_POD_UID } from '@opentelemetry/semantic-conventions';
 import { readFile } from 'node:fs/promises';
 import os from 'os';

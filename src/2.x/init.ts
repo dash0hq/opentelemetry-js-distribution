@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
+// SPDX-FileCopyrightText: Copyright 2025 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
 import { SpanKind, trace } from '@opentelemetry/api';
@@ -7,7 +7,14 @@ import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
-import { Detector, DetectorSync, envDetector, hostDetector, processDetector, Resource } from '@opentelemetry/resources';
+import {
+  ResourceDetector,
+  envDetector,
+  hostDetector,
+  processDetector,
+  defaultResource,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
@@ -17,8 +24,8 @@ import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { FileSpanExporter } from './util/FileSpanExporter';
-import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from './util/environment';
-import { kafkaJsInstrumentation } from './util/kafkajs';
+import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
+import { kafkaJsInstrumentation } from '../util/kafkajs';
 
 const logPrefix = 'Dash0 OpenTelemetry distribution for Node.js:';
 const debugOutput = hasOptedIn('DASH0_DEBUG');
@@ -69,7 +76,7 @@ const configuration: Partial<NodeSDKConfiguration> = {
     getNodeAutoInstrumentations(createInstrumentationConfig()),
     kafkaJsInstrumentation,
   ],
-  resource: resource(),
+  resource: defaultResource().merge(distroResource()),
   resourceDetectors: resourceDetectors(),
 };
 
@@ -136,21 +143,22 @@ function createInstrumentationConfig(): any {
   return instrumentationConfig;
 }
 
-function resource() {
+function distroResource() {
   const distroResourceAttributes: any = {
     'telemetry.distro.name': 'dash0-nodejs',
   };
   if (version) {
     distroResourceAttributes['telemetry.distro.version'] = version;
   }
-  return new Resource(distroResourceAttributes);
+  return resourceFromAttributes(distroResourceAttributes);
 }
 
-function resourceDetectors(): (Detector | DetectorSync)[] {
-  // Copy the behavior of the NodeSDK constructor with regard to resource detectors, but add the pod uid detector.
-  // https://github.com/open-telemetry/opentelemetry-js/blob/73fddf9b5e7a93bd4cf21c2dbf444cee31d26c88/experimental/packages/opentelemetry-sdk-node/src/sdk.ts#L126-L132
-  let detectors: (Detector | DetectorSync)[];
-  if (process.env.OTEL_NODE_RESOURCE_DETECTORS != null) {
+function resourceDetectors(): ResourceDetector[] {
+  // Copy the behavior of the NodeSDK constructor with regard to resource detectors and OTEL_NODE_RESOURCE_DETECTORS,
+  // but add the pod uid detector.
+  // https://github.com/open-telemetry/opentelemetry-js/blob/6f753cca7e48466d8dad1ddf372f0e6caa60c256/experimental/packages/opentelemetry-sdk-node/src/sdk.ts#L247-L257
+  let detectors: ResourceDetector[];
+  if (getStringFromEnv('OTEL_NODE_RESOURCE_DETECTORS')) {
     detectors = getResourceDetectors();
   } else {
     detectors = [envDetector, processDetector, containerDetector, hostDetector];
@@ -245,6 +253,14 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
       process.kill(process.pid, signal);
     }
   });
+}
+
+function getStringFromEnv(key: string): string | undefined {
+  const raw = process.env[key];
+  if (raw == null || raw.trim() === '') {
+    return undefined;
+  }
+  return raw;
 }
 
 function printDebugStdout(message: string, ...additional: any[]) {

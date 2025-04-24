@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { inspect } from 'node:util';
+import semver from 'semver';
 
 import { IpcRequest } from '../util/ipc';
 import sendToParentProcess, { sendReadyToParentProcess } from '../util/sendToParentProcess';
@@ -10,10 +11,16 @@ import HttpServer from './HttpServer';
 import Sink from './Sink';
 
 // listen on the IPv6 local loopback
-const bindAddress = '::1';
+let bindAddressHttp = '::1';
+let bindAddressGrpc = '[::1]';
+if (semver.lt(process.version, '18.0.0')) {
+  // for older Node.js versions, use localhost as bind address instead
+  bindAddressHttp = 'localhost';
+  bindAddressGrpc = 'localhost';
+}
 const sink = new Sink();
-const httpServer = new HttpServer(bindAddress, sink);
-const grpcServer = new GrpcServer(`[${bindAddress}]`, sink);
+const httpServer = new HttpServer(bindAddressHttp, sink);
+const grpcServer = new GrpcServer(bindAddressGrpc, sink);
 
 async function main() {
   await Promise.all([httpServer.start(), grpcServer.start()]);

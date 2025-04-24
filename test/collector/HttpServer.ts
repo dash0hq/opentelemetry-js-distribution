@@ -107,6 +107,12 @@ export default class HttpServer extends AbstractServer {
           this.handleHttpProtobuf(buffer, res, decodeFunction, addToSink, responseProperty);
         } else if (contentType === 'application/json') {
           this.handleHttpJson(res);
+        } else {
+          res.statusCode = 501;
+          res.setHeader('Content-Type', 'text/plain');
+          res.end(
+            `unknown content type ${contentType} is not supported (yet), only grpc and http/protobuf are supported\n`,
+          );
         }
       });
   }
@@ -130,7 +136,7 @@ export default class HttpServer extends AbstractServer {
   handleHttpJson(res: ServerResponse) {
     res.statusCode = 501;
     res.setHeader('Content-Type', 'text/plain');
-    res.end('http/json is not supported (yet), only grpc and http/protobuf\n');
+    res.end('http/json is not supported (yet), only grpc and http/protobuf are supported\n');
   }
 
   sendPlainTextResponse(res: ServerResponse, status: number, content: string) {

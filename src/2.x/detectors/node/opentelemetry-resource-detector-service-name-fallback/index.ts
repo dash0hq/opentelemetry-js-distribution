@@ -1,14 +1,20 @@
-// SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
+// SPDX-FileCopyrightText: Copyright 2025 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { DetectorSync, Resource } from '@opentelemetry/resources';
+import { ResourceDetector, DetectedResource, DetectedResourceAttributes } from '@opentelemetry/resources';
 import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
-import { readPackageJson } from './packageJsonUtil';
+import { readPackageJson } from '../../../../util/packageJsonUtil';
 
-export default class ServiceNameFallbackDetector implements DetectorSync {
-  detect(): Resource {
-    return new Resource({}, this.detectServiceNameFallback());
+export default class ServiceNameFallbackDetector implements ResourceDetector {
+  detect(): DetectedResource {
+    const serviceNamePromise = this.detectServiceNameFallback();
+    const attrNames = [SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION];
+    const attributes = {} as DetectedResourceAttributes;
+    attrNames.forEach(name => {
+      attributes[name] = serviceNamePromise.then(data => data[name]);
+    });
+    return { attributes };
   }
 
   private async detectServiceNameFallback(): Promise<any> {

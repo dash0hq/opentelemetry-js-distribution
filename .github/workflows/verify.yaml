@@ -14,7 +14,16 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [ '18.x',  '20.x', '21.x', '22.x' ]
+        node-version:
+          - '16.x'
+          # 18.18.2 is the most recent version that is _not_ supported by OpenTelemetry JS SDK 2.x, hence we test it
+          # individually. (Should run with OpenTelemetry JS SDK 1.x.)
+          - '18.18.2'
+          # 18.x evaluates to a 18.x line >= 18.19.0, and hence will be run with OpenTelemetry JS SDK 2.x.
+          - '18.x'
+          - '20.x'
+          - '22.x'
+          - '23.x'
 
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +42,7 @@ jobs:
       - run: npm ci
 
       - name: lint
+        if: ${{ matrix.node-version != '16.x' }}
         run: |
           npm run lint
 
@@ -46,7 +56,8 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [ '16.x' ]
+        node-version:
+          - '14.x'
 
     steps:
       - uses: actions/checkout@v4
@@ -62,11 +73,11 @@ jobs:
           node --version
           npm --version
 
-      - run: npm ci
+      - run: npm install
 
-      - name: integration test
+      - name: minimum version integration test
         run: |
-          npm run test:integration
+          npm run test:integration:minimum-version-check
 
   publish-release:
     name: Publish Release
