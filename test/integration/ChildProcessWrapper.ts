@@ -215,6 +215,7 @@ export function defaultAppConfiguration(appPort: number): ChildProcessWrapperOpt
       OTEL_METRIC_EXPORT_TIMEOUT: '90',
 
       DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
+      DASH0_DEBUG: 'true',
 
       // helpful options for troubleshooting integration tests:
       // DASH0_DEBUG_PRINT_SPANS: 'true',

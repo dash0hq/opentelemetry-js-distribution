@@ -33,15 +33,16 @@ const debugOutput = hasOptedIn('DASH0_DEBUG');
 let packageJson;
 let version: string;
 try {
-  // In the published package, the transpiled JS files are in dist/src/init.js, therefore the relative path to
-  // package.json is two levels above the directory of init.js.
+  // In the published package, the transpiled JS files are in dist/src/(1.x|2.x)/init.js, therefore the relative path to
+  // package.json is three levels above the directory of init.js.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  packageJson = require('../../package.json');
+  packageJson = require('../../../package.json');
 } catch (e1) {
   try {
-    // In development, the directory is just src, therefore the relative path to package.json is only one level above.
+    // In development, the directory is just src/(1.x|2.x)/, therefore the relative path to package.json is only two
+    // levels above.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    packageJson = require('../package.json');
+    packageJson = require('../../package.json');
   } catch (e2) {
     printDebugStderr(
       'Unable to find our own package.json file, will not transmit telemetry.distro.version. This warning can be safely ignored.',
@@ -50,14 +51,17 @@ try {
     );
   }
 }
-// Since we read the package.json from two possible relative paths, we are extra-careful to make sure we actually are
-// reading from our own package.json file, hence the name check.
-if (packageJson && packageJson.name === '@dash0hq/opentelemetry') {
-  version = packageJson.version;
-} else {
-  printDebugStderr(
-    `Unexpected package name in our own package.json: ${packageJson.name}, will not transmit telemetry.distro.version. This warning can be safely ignored.`,
-  );
+
+if (packageJson) {
+  // Since we read the package.json from two possible relative paths, we are extra-careful to make sure we actually are
+  // reading from our own package.json file, hence the name check.
+  if (packageJson.name === '@dash0hq/opentelemetry') {
+    version = packageJson.version;
+  } else {
+    printDebugStderr(
+      `Unexpected package name in our own package.json: ${packageJson.name}, will not transmit telemetry.distro.version. This warning can be safely ignored.`,
+    );
+  }
 }
 
 printDebugStdout('Starting NodeSDK.');
