@@ -1,23 +1,19 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/* global module, require */
-/* eslint-disable @typescript-eslint/no-require-imports */
+// @ts-check
 
-'use strict';
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
 
-const eslint = require('@eslint/js');
-const tsEsLint = require('typescript-eslint');
+import header from 'eslint-plugin-header';
+import mocha from 'eslint-plugin-mocha';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
+import unusedImports from 'eslint-plugin-unused-imports';
 
-const header = require('eslint-plugin-header');
-const mocha = require('eslint-plugin-mocha');
-const simpleImportSort = require('eslint-plugin-simple-import-sort');
-const unusedImports = require('eslint-plugin-unused-imports');
-
-module.exports = tsEsLint.config(
-  //
+export default tseslint.config(
   eslint.configs.recommended,
-  ...tsEsLint.configs.recommended,
+  tseslint.configs.recommended,
   {
     plugins: {
       header,
