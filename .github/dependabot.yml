@@ -8,9 +8,6 @@ updates:
       time: "09:00"
       timezone: "Europe/Berlin"
     ignore:
-      - dependency-name: "chai"
-      - dependency-name: "eslint"
-      - dependency-name: "eslint-plugin-unused-imports"
       - dependency-name: "node-fetch"
         versions:
         - ">=3.0.0"
