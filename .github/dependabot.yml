@@ -11,6 +11,9 @@ updates:
       - dependency-name: "chai"
       - dependency-name: "eslint"
       - dependency-name: "eslint-plugin-unused-imports"
+      - dependency-name: "node-fetch"
+        versions:
+        - ">=3.0.0"
     groups:
       production-dependencies:
         dependency-type: "production"
