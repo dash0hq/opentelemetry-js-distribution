@@ -5,7 +5,6 @@
 
 /* global module, process, require */
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const semver = require('semver');
 
 module.exports = {

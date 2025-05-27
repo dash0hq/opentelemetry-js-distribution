@@ -5,7 +5,6 @@
 
 /* global module, require */
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const isCi = require('is-ci');
 
 module.exports = {
