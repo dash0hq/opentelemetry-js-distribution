@@ -1,4 +1,19 @@
 {
   "upgrade": true,
-  "reject": ["chai", "eslint", "eslint-plugin-unused-imports"]
+  "reject": [
+    "chai",
+    "node-fetch",
+    "@opentelemetry/auto-instrumentations-node-1.x",
+    "@opentelemetry/core-1.x",
+    "@opentelemetry/exporter-logs-otlp-proto-1.x",
+    "@opentelemetry/exporter-metrics-otlp-proto-1.x",
+    "@opentelemetry/exporter-trace-otlp-proto-1.x",
+    "@opentelemetry/resource-detector-container-1.x",
+    "@opentelemetry/resources-1.x",
+    "@opentelemetry/sdk-logs-1.x",
+    "@opentelemetry/sdk-metrics-1.x",
+    "@opentelemetry/sdk-node-1.x",
+    "@opentelemetry/sdk-trace-base-1.x",
+    "@opentelemetry/sdk-trace-node-1.x"
+  ]
 }
