@@ -43,7 +43,6 @@ export async function readPackageJson(): Promise<PackageJson | null> {
   switch (cachedPackageJson.state) {
     case 'not-attempted':
       attemptInProgress = findAndParsePackageJsonFromEntrypoint();
-      // eslint-disable-next-line no-case-declarations
       const parsedPackageJson = await attemptInProgress;
       if (parsedPackageJson != null) {
         cachedPackageJson = { state: 'value-has-been-cached', value: parsedPackageJson };
