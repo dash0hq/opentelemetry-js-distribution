@@ -47,13 +47,17 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/**/*_test.*', 'test/**/*'],
+    // Note: These patterns need to have a file type extension, otherwise they will match temp files like `.swp` from
+    // vim.
+    files: ['src/**/*_test*.ts', 'test/**/*.ts', 'test/**/*.js'],
     rules: {
       '@typescript-eslint/no-unused-expressions': 'off',
     },
   },
   {
-    files: ['**/.mocharc.*'],
+    // Note: These patterns need to have a file type extension, otherwise they will match temp files like `.swp` from
+    // vim.
+    files: ['**/.mocharc.*.js'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
