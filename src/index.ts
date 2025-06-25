@@ -11,7 +11,10 @@ const versionMapping = [
   // OpenTelemetry JS SDK 2.x, supports Node.js >= 18.19.0 || >= 20.6.0
   ['>=18.19.0', './2.x/init'],
 ];
-const untestedVersionRange = '>=24.0.0';
+
+// Maintenance note: This needs to be kept in sync with the version ranges in .github/workflows/verify.yaml, property
+// jobs.verify.strategy.matrix.node-version.
+const untestedVersionRange = '>=25.0.0';
 
 const prefix = 'Dash0 OpenTelemetry Distribution';
 

@@ -25,6 +25,8 @@ jobs:
           - '22.x'
           - '23.x'
           - '24.x'
+          # Maintenance note: Update the semver expression `untestedVersionRange` in src/index.ts when adding new
+          # Node.js versions to the test matrix.
 
     steps:
       - uses: actions/checkout@v4
