@@ -55,7 +55,7 @@ try {
 if (packageJson) {
   // Since we read the package.json from two possible relative paths, we are extra-careful to make sure we actually are
   // reading from our own package.json file, hence the name check.
-  if (packageJson.name === '@dash0hq/opentelemetry') {
+  if (packageJson.name === '@dash0/opentelemetry') {
     version = packageJson.version;
   } else {
     printDebugStderr(

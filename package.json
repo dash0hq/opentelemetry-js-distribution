@@ -1,5 +1,5 @@
 {
-  "name": "@dash0hq/opentelemetry",
+  "name": "@dash0/opentelemetry",
   "version": "0.0.0-managed-by-semantic-release",
   "description": "Dash0 OpenTelemetry Wrapper for Node.js",
   "main": "dist/src/index.js",
@@ -9,7 +9,7 @@
     "verify": "npm run lint && npm test",
     "lint": "npm run eslint && npm run prettier-check",
     "eslint": "eslint eslint.config.mjs src test",
-    "prepack": "rimraf dash0hq-opentelemetry-*.tgz && npm run build",
+    "prepack": "rimraf dash0-opentelemetry-*.tgz && npm run build",
     "prettier": "prettier --write eslint.config.mjs .mocharc.js 'src/**/*.[jt]s' 'test/**/*.[jt]s' --parser typescript",
     "prettier-check": "prettier --check eslint.config.mjs 'src/**/*.[jt]s' 'test/**/*.[jt]s' --parser typescript",
     "test": "npm run test:unit && npm run test:integration",
