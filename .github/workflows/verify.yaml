@@ -115,6 +115,12 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # To (re-)create a suitable token, log in to https://www.npmjs.com, go to "Access Tokens" in your profile,
+          # and create a new granular access token with read and write access scope "@dash0", i.e., under
+          # "Packages and scopes", select "Only select packages and scopes", then the "dash0" scope. The user doing
+          # this neeeds to have proper access to the dash0 npm organization. Providing access to the dash0 organization
+          # (in the "Organizations" section) is not required.
+          # The token is then provided via
+          # https://github.com/dash0hq/opentelemetry-js-distribution/settings/secrets/actions as a repository secret.
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
-
