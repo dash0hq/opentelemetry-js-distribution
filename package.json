@@ -90,7 +90,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.0.0",
     "@types/semver": "^7.7.0",
-    "@types/sinon": "^17.0.4",
+    "@types/sinon": "^21.0.0",
     "chai": "^4.4.1",
     "eslint": "^9.27.0",
     "eslint-plugin-header": "^3.1.1",
