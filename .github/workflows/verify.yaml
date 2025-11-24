@@ -29,7 +29,7 @@ jobs:
           # Node.js versions to the test matrix.
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - uses: actions/setup-node@v6
@@ -63,7 +63,7 @@ jobs:
           - '14.x'
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - uses: actions/setup-node@v6
@@ -102,7 +102,7 @@ jobs:
       - verify-minimum-version-check
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v6
