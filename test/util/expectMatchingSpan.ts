@@ -12,9 +12,12 @@ import {
   ServiceRequestMapper,
 } from './findMatchingItems';
 
-class TraceDataServiceRequestMapper
-  implements ServiceRequestMapper<ExportTraceServiceRequest, ResourceSpans, ScopeSpans, Span>
-{
+class TraceDataServiceRequestMapper implements ServiceRequestMapper<
+  ExportTraceServiceRequest,
+  ResourceSpans,
+  ScopeSpans,
+  Span
+> {
   getResourceItems(serviceRequest: ExportTraceServiceRequest): ResourceSpans[] {
     return serviceRequest.resource_spans;
   }

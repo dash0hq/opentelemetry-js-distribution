@@ -11,9 +11,12 @@ import {
   ServiceRequestMapper,
 } from './findMatchingItems';
 
-class MetricsServiceRequestMapper
-  implements ServiceRequestMapper<ExportMetricsServiceRequest, ResourceMetrics, ScopeMetrics, Metric>
-{
+class MetricsServiceRequestMapper implements ServiceRequestMapper<
+  ExportMetricsServiceRequest,
+  ResourceMetrics,
+  ScopeMetrics,
+  Metric
+> {
   getResourceItems(serviceRequest: ExportMetricsServiceRequest): ResourceMetrics[] {
     return serviceRequest.resource_metrics;
   }
