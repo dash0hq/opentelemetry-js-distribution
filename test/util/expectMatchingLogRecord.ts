@@ -11,9 +11,12 @@ import {
   ServiceRequestMapper,
 } from './findMatchingItems';
 
-class LogsServiceRequestMapper
-  implements ServiceRequestMapper<ExportLogsServiceRequest, ResourceLogs, ScopeLogs, LogRecord>
-{
+class LogsServiceRequestMapper implements ServiceRequestMapper<
+  ExportLogsServiceRequest,
+  ResourceLogs,
+  ScopeLogs,
+  LogRecord
+> {
   getResourceItems(serviceRequest: ExportLogsServiceRequest): ResourceLogs[] {
     return serviceRequest.resource_logs;
   }
