@@ -14,7 +14,7 @@ const versionMapping = [
 
 // Maintenance note: This needs to be kept in sync with the version ranges in .github/workflows/verify.yaml, property
 // jobs.verify.strategy.matrix.node-version.
-const untestedVersionRange = '>=25.0.0';
+const untestedVersionRange = '>=26.0.0';
 
 const prefix = 'Dash0 OpenTelemetry Distribution';
 
