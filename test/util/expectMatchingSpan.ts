@@ -7,7 +7,6 @@ import { ResourceSpans, ScopeSpans, Span } from '../collector/types/opentelemetr
 import {
   Expectation,
   findMatchingItemsInServiceRequest,
-  findMatchingSpansInFileDump,
   processFindItemsResult,
   ServiceRequestMapper,
 } from './findMatchingItems';
@@ -45,21 +44,6 @@ export function expectMatchingSpan(
     new TraceDataServiceRequestMapper(),
     resourceExpectations,
     spanExpectations,
-  );
-  return processFindItemsResult(matchResult, 'span');
-}
-
-export function expectMatchingSpanInFileDump(
-  spans: any[],
-  resourceAttributeExpectations: Expectation<any>[],
-  spanExpectations: Expectation<any>[],
-  spanAttributeExpectations: Expectation<any>[],
-): Span {
-  const matchResult = findMatchingSpansInFileDump(
-    spans,
-    resourceAttributeExpectations,
-    spanExpectations,
-    spanAttributeExpectations,
   );
   return processFindItemsResult(matchResult, 'span');
 }

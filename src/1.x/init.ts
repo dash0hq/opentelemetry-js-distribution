@@ -23,7 +23,6 @@ import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node-1.x';
 
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
-import { FileSpanExporter } from './util/FileSpanExporter';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
 import { kafkaJsInstrumentation } from '../util/kafkajs';
 
@@ -110,12 +109,8 @@ function spanProcessors(): SpanProcessor[] {
     ),
   ];
 
-  if (process.env.DASH0_DEBUG_PRINT_SPANS != null) {
-    if (process.env.DASH0_DEBUG_PRINT_SPANS.toLowerCase() === 'true') {
-      spanProcessors.push(new BatchSpanProcessor(new ConsoleSpanExporter()));
-    } else {
-      spanProcessors.push(new BatchSpanProcessor(new FileSpanExporter(process.env.DASH0_DEBUG_PRINT_SPANS)));
-    }
+  if (process.env.DASH0_DEBUG_PRINT_SPANS != null && process.env.DASH0_DEBUG_PRINT_SPANS.toLowerCase() === 'true') {
+    spanProcessors.push(new BatchSpanProcessor(new ConsoleSpanExporter()));
   }
   return spanProcessors;
 }

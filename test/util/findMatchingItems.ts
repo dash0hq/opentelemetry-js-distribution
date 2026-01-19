@@ -3,7 +3,6 @@
 
 import { expect } from 'chai';
 import { Resource } from '../collector/types/opentelemetry/proto/resource/v1/resource';
-import { Span } from '../collector/types/opentelemetry/proto/trace/v1/trace';
 
 const { fail } = expect;
 
@@ -96,93 +95,6 @@ export function findMatchingItemsInServiceRequest<SR, R, S, I>(
   });
   if (matchingItems.length > 0) {
     return { matchingItems };
-  } else {
-    return { bestCandidate };
-  }
-}
-
-export function findMatchingSpansInFileDump(
-  spans: any[],
-  resourceAttributeExpectations: Expectation<any>[],
-  spanExpectations: Expectation<any>[],
-  spanAttributeExpectations: Expectation<any>[],
-): MatchingItemsResult<Span> {
-  if (spans.length === 0) {
-    fail('No trace data has been provided.');
-  }
-  const matchingSpans: Span[] = [];
-  let bestCandidate: Candidate = {
-    passedChecks: 0,
-  };
-
-  spans.forEach(span => {
-    let passedChecks = 0;
-    if (resourceAttributeExpectations.length > 0) {
-      // verify that the resource attribtues match
-      const resource = span.resource;
-      if (!resource) {
-        // This resource span has no resource information, try the next span.
-        return;
-      }
-      const resourceAttributes = resource.attributes;
-      if (!resourceAttributes) {
-        // This resource span has no resource information, try the next span.
-        return;
-      }
-      try {
-        for (let i = 0; i < resourceAttributeExpectations.length; i++) {
-          resourceAttributeExpectations[i](resourceAttributes);
-          passedChecks++;
-        }
-      } catch (error) {
-        // The resource attributes of this span did not match, try the next span.
-        if (passedChecks > bestCandidate.passedChecks) {
-          bestCandidate = {
-            item: span,
-            passedChecks: passedChecks,
-            error,
-          };
-        }
-        return;
-      }
-    }
-
-    try {
-      for (let i = 0; i < spanExpectations.length; i++) {
-        spanExpectations[i](span);
-        passedChecks++;
-      }
-      if (spanAttributeExpectations.length > 0) {
-        const spanAttributes = span.attributes;
-        if (!spanAttributes) {
-          // This span has no attributes, try the next span.
-          if (passedChecks > bestCandidate.passedChecks) {
-            bestCandidate = {
-              item: span,
-              passedChecks: passedChecks,
-            };
-          }
-          return;
-        }
-        for (let i = 0; i < spanAttributeExpectations.length; i++) {
-          spanAttributeExpectations[i](spanAttributes);
-          passedChecks++;
-        }
-      }
-      matchingSpans.push(span);
-    } catch (error) {
-      // This span did not match, try the next span.
-      if (passedChecks > bestCandidate.passedChecks) {
-        bestCandidate = {
-          item: span,
-          passedChecks: passedChecks,
-          error,
-        };
-      }
-    }
-  });
-  if (matchingSpans.length > 0) {
-    return { matchingItems: matchingSpans };
   } else {
     return { bestCandidate };
   }
