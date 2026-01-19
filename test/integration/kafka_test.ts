@@ -27,7 +27,7 @@ describe('kafka tracing', () => {
       return;
     }
 
-    await runNpmCommand('ci', 'test/apps/kafkajs');
+    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/kafkajs');
 
     appUnderTest = new ChildProcessWrapper(appConfiguration);
     await appUnderTest.start();

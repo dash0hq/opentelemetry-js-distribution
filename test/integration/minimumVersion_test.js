@@ -34,7 +34,7 @@ describe('minimum version check', () => {
 
     await runCommand('mv package-lock.json .package-lock.json.backup', 'test/apps/express-typescript');
     restorePackageLockFile = true;
-    await runNpmCommand('install --no-package-lock', 'test/apps/express-typescript');
+    await runNpmCommand('install --no-package-lock --quiet --no-fund --no-audit', 'test/apps/express-typescript');
     const appConfiguration = defaultAppConfiguration(appPort);
     appUnderTest = new ChildProcessWrapper(appConfiguration);
     await appUnderTest.start();
