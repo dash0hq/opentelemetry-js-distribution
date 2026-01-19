@@ -33,12 +33,6 @@ Additional debug logs can be enabled by setting `DASH0_DEBUG=true`.
 
 If `DASH0_DEBUG_PRINT_SPANS=true` is set, all spans are printed to `stdout` via the
 [ConsoleSpanExporter](https://open-telemetry.github.io/opentelemetry-js/classes/_opentelemetry_sdk_trace_base.ConsoleSpanExporter.html).
-If `DASH0_DEBUG_PRINT_SPANS` is set to any other non-empty string, the value is interpreted as a file system path.
-Spans will be appended to that file.
-The file will be created if it does not exist.
-If the file cannot be opened for writing, a message will be printed to `stderr` and no spans will be printed to file.
-The spans are printed in the same format that the `ConsoleSpanExporter` uses.
-This facility is meant for troubleshooting and should not be activated in production.
 
 ### <a id="DASH0_DISABLE">DASH0_DISABLE</a>
 
