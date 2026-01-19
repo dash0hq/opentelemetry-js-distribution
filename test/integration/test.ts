@@ -37,7 +37,7 @@ describe('attach', () => {
       return;
     }
 
-    await runNpmCommand('ci', 'test/apps/express-typescript');
+    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/express-typescript');
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
 
