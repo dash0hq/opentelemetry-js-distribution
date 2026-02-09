@@ -10,6 +10,7 @@ updates:
     ignore:
       - dependency-name: "chai"
       - dependency-name: "eslint"
+      - dependency-name: "@eslint/js"
       - dependency-name: "eslint-plugin-unused-imports"
       - dependency-name: "node-fetch"
         versions:
