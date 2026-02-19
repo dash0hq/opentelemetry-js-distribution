@@ -32,6 +32,8 @@ export default class ChildProcessWrapper {
   private options: ChildProcessWrapperOptions;
   private nextIpcRequestId: number;
   private responseEmitter: ResponseEmitter;
+  private capturedStdout: string;
+  private capturedStderr: string;
 
   constructor(options: ChildProcessWrapperOptions) {
     this.options = options;
@@ -42,6 +44,8 @@ export default class ChildProcessWrapper {
     this.terminated = false;
     this.nextIpcRequestId = 0;
     this.responseEmitter = new ResponseEmitter();
+    this.capturedStdout = '';
+    this.capturedStderr = '';
   }
 
   async start() {
@@ -51,7 +55,7 @@ export default class ChildProcessWrapper {
     this.childProcess.on('exit', () => {
       this.terminated = true;
     });
-    this.echoOutputStreams();
+    this.echoAndCollectOutputStreams();
     await this.waitUntilReady();
   }
 
@@ -109,12 +113,14 @@ export default class ChildProcessWrapper {
     });
   }
 
-  private echoOutputStreams() {
+  private echoAndCollectOutputStreams() {
     this.childProcess?.stdout?.on('data', data => {
       console.log(`${this.options.label}(${this.childProcess?.pid}):\t${data}`);
+      this.capturedStdout += String(data);
     });
     this.childProcess?.stderr?.on('data', data => {
       console.error(`${this.options.label}(${this.childProcess?.pid}):\t${data}`);
+      this.capturedStderr += String(data);
     });
   }
 
@@ -189,6 +195,14 @@ export default class ChildProcessWrapper {
       return;
     }
     this.responseEmitter.emit(message.id, message);
+  }
+
+  getCapturedStdout() {
+    return this.capturedStdout;
+  }
+
+  getCapturedStderr() {
+    return this.capturedStderr;
   }
 }
 

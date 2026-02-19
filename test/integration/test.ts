@@ -35,6 +35,7 @@ describe('attach', () => {
       return;
     }
 
+    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/already-instrumented');
     await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/express-typescript');
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
@@ -390,6 +391,58 @@ describe('attach', () => {
       if (await collector().hasTelemetry()) {
         fail('The collector received telemetry data although it should not have received anything.');
       }
+    });
+  });
+
+  describe('disable when existing instrumentation is detected, to prevent double-instrumentation', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    before(async () => {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      appConfiguration.path = 'test/apps/already-instrumented';
+      appConfiguration.env!.OTEL_TRACES_EXPORTER = 'console';
+      appConfiguration.env!.OTEL_LOGS_EXPORTER = 'none';
+      appConfiguration.env!.OTEL_METRICS_EXPORTER = 'none';
+      appConfiguration.env!.NODE_OPTIONS = '--require @opentelemetry/auto-instrumentations-node/register';
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+      await appUnderTest.start();
+    });
+
+    after(async () => {
+      // make sure the test app actually terminates
+      await appUnderTest.stop('SIGKILL');
+    });
+
+    it('should do nothing if the app is already instrumented', async () => {
+      await delay(1000);
+      await sendHttpRequestAndVerifyResponse();
+      await delay(2000);
+
+      if (await collector().hasTelemetry()) {
+        fail('The collector received telemetry data although it should not have received anything.');
+      }
+
+      const stderr = appUnderTest.getCapturedStderr();
+      expect(stderr).to.include(
+        '[Dash0 OpenTelemetry Distribution] It seems this Node.js application is already instrumented, the Dash0 Node.js ' +
+          'OpenTelemetry distribution has been automatically disabled to prevent double-instrumentation.',
+      );
+
+      // trigger flushing telemetry collected by the manual instrumentation (console exporter)
+      appUnderTest.stop();
+
+      await waitUntil(
+        () => {
+          // verify that the OTel SDK that the application itself uses has captured telemetry
+          const stdout = appUnderTest.getCapturedStdout();
+          expect(stdout).to.include('instrumentationScope: {');
+          expect(stdout).to.include("name: '@opentelemetry/instrumentation-express',");
+        },
+        {
+          maxAttempts: 25,
+          waitBetweenRetries: 200,
+        },
+      );
     });
   });
 

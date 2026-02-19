@@ -20,6 +20,17 @@ const prefix = 'Dash0 OpenTelemetry Distribution';
 
 function init() {
   try {
+    const otelSdkAlreadyLoaded = Object.keys(require.cache).some(cacheKey =>
+      cacheKey.includes('@opentelemetry/sdk-node/build/src/sdk.js'),
+    );
+
+    if (otelSdkAlreadyLoaded) {
+      logProhibitiveError(
+        `It seems this Node.js application is already instrumented, the Dash0 Node.js OpenTelemetry distribution has been automatically disabled to prevent double-instrumentation.`,
+      );
+      return;
+    }
+
     const nodeJsRuntimeVersion = process.version;
 
     if (semver.lt(nodeJsRuntimeVersion, lowerBound)) {
