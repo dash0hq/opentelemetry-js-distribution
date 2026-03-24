@@ -400,6 +400,8 @@ describe('attach', () => {
     before(async () => {
       const appConfiguration = defaultAppConfiguration(appPort);
       appConfiguration.path = 'test/apps/already-instrumented';
+      // Note: This will print spans to stdout in the test app, which can look a bit weird in the output of the test
+      // suite. We use this to verify that the original instrumentation works.
       appConfiguration.env!.OTEL_TRACES_EXPORTER = 'console';
       appConfiguration.env!.OTEL_LOGS_EXPORTER = 'none';
       appConfiguration.env!.OTEL_METRICS_EXPORTER = 'none';
