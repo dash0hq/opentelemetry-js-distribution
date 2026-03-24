@@ -12,6 +12,9 @@ updates:
       - dependency-name: "node-fetch"
         versions:
         - ">=3.0.0"
+      - dependency-name: "typescript"
+        versions:
+          - ">=6.0.0"
     groups:
       production-dependencies:
         dependency-type: "production"
