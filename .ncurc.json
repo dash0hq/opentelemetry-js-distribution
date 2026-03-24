@@ -3,6 +3,7 @@
   "reject": [
     "chai",
     "node-fetch",
+    "typescript",
     "@opentelemetry/auto-instrumentations-node-1.x",
     "@opentelemetry/core-1.x",
     "@opentelemetry/exporter-logs-otlp-proto-1.x",
