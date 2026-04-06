@@ -77,7 +77,7 @@ async function findAndParsePackageJsonFromEntrypoint(): Promise<PackageJson | nu
 }
 
 async function checkDirectoryOrAncestor(directory: string): Promise<PackageJson | null> {
-  const packageJsonCandidate = path.join(directory, 'package.json');
+  const packageJsonCandidate = path.join(path.resolve(directory), 'package.json');
   let packageJsonStat;
   try {
     packageJsonStat = await stat(packageJsonCandidate);
