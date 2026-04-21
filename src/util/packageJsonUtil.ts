@@ -61,6 +61,7 @@ export async function readPackageJson(): Promise<PackageJson | null> {
 }
 
 async function findAndParsePackageJsonFromEntrypoint(): Promise<PackageJson | null> {
+  // process.argv[1] is the absolute path to the main/entrypoint script
   const entrypoint = process.argv[1];
   let entrypointStat;
   try {
@@ -77,7 +78,8 @@ async function findAndParsePackageJsonFromEntrypoint(): Promise<PackageJson | nu
 }
 
 async function checkDirectoryOrAncestor(directory: string): Promise<PackageJson | null> {
-  const packageJsonCandidate = path.join(path.resolve(directory), 'package.json');
+  // invariant: directory is always an absolute path
+  const packageJsonCandidate = path.resolve(directory, 'package.json');
   let packageJsonStat;
   try {
     packageJsonStat = await stat(packageJsonCandidate);
@@ -109,7 +111,8 @@ async function checkForSiblingNodeModulesFolder(
   directory: string,
   packageJsonCandidate: string,
 ): Promise<PackageJson | null> {
-  const nodeModulesCandidate = path.join(directory, 'node_modules');
+  // invariant: directory is always an absolute path
+  const nodeModulesCandidate = path.resolve(directory, 'node_modules');
   let nodeModulesStat;
   try {
     nodeModulesStat = await stat(nodeModulesCandidate);
