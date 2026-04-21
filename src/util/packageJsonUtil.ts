@@ -78,8 +78,9 @@ async function findAndParsePackageJsonFromEntrypoint(): Promise<PackageJson | nu
 }
 
 async function checkDirectoryOrAncestor(directory: string): Promise<PackageJson | null> {
-  // invariant: directory is always an absolute path
-  const packageJsonCandidate = path.resolve(directory, 'package.json');
+  // Invariant: directory is always an absolute path. It is trusted input, since it is derived from the entrypoint
+  // script's path, not from user input.
+  const packageJsonCandidate = path.join(directory, 'package.json');
   let packageJsonStat;
   try {
     packageJsonStat = await stat(packageJsonCandidate);
@@ -111,8 +112,9 @@ async function checkForSiblingNodeModulesFolder(
   directory: string,
   packageJsonCandidate: string,
 ): Promise<PackageJson | null> {
-  // invariant: directory is always an absolute path
-  const nodeModulesCandidate = path.resolve(directory, 'node_modules');
+  // Invariant: directory is always an absolute path. It is trusted input, since it is derived from the entrypoint
+  // script's path, not from user input.
+  const nodeModulesCandidate = path.join(directory, 'node_modules');
   let nodeModulesStat;
   try {
     nodeModulesStat = await stat(nodeModulesCandidate);
