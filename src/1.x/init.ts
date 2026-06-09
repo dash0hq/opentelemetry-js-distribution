@@ -23,7 +23,12 @@ import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node-1.x';
 
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
-import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
+import {
+  dash0CollectorBaseUrl,
+  hasOptedIn,
+  hasOptedOut,
+  parseNumericEnvironmentVariableWithDefault,
+} from '../util/environment';
 import { kafkaJsInstrumentation } from '../util/kafkajs';
 
 const logPrefix = 'Dash0 OpenTelemetry distribution for Node.js:';
@@ -67,8 +72,7 @@ printDebugStdout('Starting NodeSDK.');
 
 let sdkShutdownHasBeenCalled = false;
 
-// Note: There is a check in index.ts that this env var is set.
-const baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
+const baseUrl = dash0CollectorBaseUrl();
 
 const configuration: Partial<NodeSDKConfiguration> = {
   // Ignore TS2322 triggered by different import paths due to custom package aliases being used in package.json
