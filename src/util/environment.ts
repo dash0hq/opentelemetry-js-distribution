@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright 2024 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+export const DEFAULT_DASH0_OTEL_COLLECTOR_BASE_URL =
+  'http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318';
+
 export function hasOptedIn(envVarName: string) {
   const raw = process.env[envVarName];
   return raw != null && raw.toLowerCase() === 'true';
@@ -21,4 +24,12 @@ export function parseNumericEnvironmentVariableWithDefault(envVarName: string, d
     return defaultValue;
   }
   return value;
+}
+
+export function dash0CollectorBaseUrl(): string {
+  const raw = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
+  if (raw == null || raw.trim() === '') {
+    return DEFAULT_DASH0_OTEL_COLLECTOR_BASE_URL;
+  }
+  return raw;
 }

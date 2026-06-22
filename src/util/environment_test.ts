@@ -3,7 +3,13 @@
 
 import { expect } from 'chai';
 
-import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from './environment';
+import {
+  DEFAULT_DASH0_OTEL_COLLECTOR_BASE_URL,
+  dash0CollectorBaseUrl,
+  hasOptedIn,
+  hasOptedOut,
+  parseNumericEnvironmentVariableWithDefault,
+} from './environment';
 
 describe('environment variables', () => {
   const envVarsUsedInTest = [
@@ -12,6 +18,7 @@ describe('environment variables', () => {
     'DASH0_TEST_IS_SET',
     'DASH0_TEST_NOT_A_NUMBER',
     'DASH0_TEST_NUMERIC_ENV_VAR',
+    'DASH0_OTEL_COLLECTOR_BASE_URL',
   ];
   const originalValues: Map<string, string | undefined> = new Map();
 
@@ -82,6 +89,23 @@ describe('environment variables', () => {
     it('returns parsed value if env var is set and can be parsed', async () => {
       process.env.DASH0_TEST_NUMERIC_ENV_VAR = '1302';
       expect(parseNumericEnvironmentVariableWithDefault('DASH0_TEST_NUMERIC_ENV_VAR', 789)).to.equal(1302);
+    });
+  });
+
+  describe('collector base url', () => {
+    it('returns the in-cluster collector URL if env var is not set', async () => {
+      delete process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
+      expect(dash0CollectorBaseUrl()).to.equal(DEFAULT_DASH0_OTEL_COLLECTOR_BASE_URL);
+    });
+
+    it('returns the in-cluster collector URL if env var is blank', async () => {
+      process.env.DASH0_OTEL_COLLECTOR_BASE_URL = '  ';
+      expect(dash0CollectorBaseUrl()).to.equal(DEFAULT_DASH0_OTEL_COLLECTOR_BASE_URL);
+    });
+
+    it('returns the configured collector URL if env var is set', async () => {
+      process.env.DASH0_OTEL_COLLECTOR_BASE_URL = 'http://collector.example.test:4318';
+      expect(dash0CollectorBaseUrl()).to.equal('http://collector.example.test:4318');
     });
   });
 });
