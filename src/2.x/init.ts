@@ -232,8 +232,10 @@ async function gracefulSdkShutdown(signal?: string) {
 
 function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, signal?: string) {
   let setTimeoutId: NodeJS.Timeout;
+  let timedOut = false;
   const timeoutPromise = new Promise(resolve => {
     setTimeoutId = setTimeout(() => {
+      timedOut = true;
       resolve(null);
     }, timeoutMillis);
   });
@@ -250,6 +252,9 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
       // re-raise the signal to exit the process
       printDebugStdout('Re-raising signal', signal);
       process.kill(process.pid, signal);
+    } else if (timedOut) {
+      printDebugStdout('Timeout for graceful SDK shutdown exceeded, exiting.');
+      process.exit();
     }
   });
 }
