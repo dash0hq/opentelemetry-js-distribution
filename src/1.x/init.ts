@@ -207,13 +207,20 @@ async function onProcessExit(signal?: NodeJS.Signals) {
   } else {
     printDebugStdout('Running process exit handler.');
   }
+  let timedOut = false;
   try {
-    await executePromiseWithTimeout(gracefulSdkShutdown(), 500);
+    timedOut = await executePromiseWithTimeout(gracefulSdkShutdown(), 500);
   } finally {
     if (signal) {
       // The once listener is gone, so re-raising the signal terminates the process with the default action.
       printDebugStdout('Re-raising signal', signal);
       process.kill(process.pid, signal);
+    } else if (timedOut) {
+      // The shutdown is still in progress and might keep the event loop alive for much longer than the timeout, for
+      // example via the OTLP exporters' retry backoff timers when the collector is unreachable. Exit explicitly
+      // (keeping process.exitCode) instead of waiting for the event loop to drain.
+      printDebugStdout('Timeout for graceful SDK shutdown exceeded, exiting.');
+      process.exit();
     }
   }
 }
@@ -235,17 +242,18 @@ async function gracefulSdkShutdown() {
   }
 }
 
-function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number) {
+/** Resolves to true if the timeout elapsed before the promise settled. */
+function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number): Promise<boolean> {
   let setTimeoutId: NodeJS.Timeout;
-  const timeoutPromise = new Promise(resolve => {
+  const timeoutPromise = new Promise<boolean>(resolve => {
     setTimeoutId = setTimeout(() => {
-      resolve(null);
+      resolve(true);
     }, timeoutMillis);
   });
 
   return Promise.race([
     //
-    promise,
+    promise.then(() => false),
     timeoutPromise,
   ]).finally(() => {
     if (setTimeoutId) {
