@@ -125,11 +125,11 @@ function metricsReader(): PeriodicExportingMetricReader {
 }
 
 function logRecordProcessor() {
-  return new BatchLogRecordProcessor(
-    new OTLPLogExporter({
+  return new BatchLogRecordProcessor({
+    exporter: new OTLPLogExporter({
       url: `${baseUrl}/v1/logs`,
     }),
-  );
+  });
 }
 
 function createInstrumentationConfig(): any {

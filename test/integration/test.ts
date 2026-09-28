@@ -88,13 +88,13 @@ describe('attach', () => {
             resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
           ],
           [
-            metric => expect(metric.name).to.equal('http.server.duration'),
+            metric => expect(metric.name).to.equal('http.server.request.duration'),
             metric => {
               const dataPoints = metric.histogram?.data_points;
               expect(dataPoints).to.exist;
               expect(dataPoints).to.not.be.empty;
               dataPoints?.forEach(dataPoint => {
-                expectMetricDataPointAttribute(dataPoint, 'http.method', 'GET');
+                expectMetricDataPointAttribute(dataPoint, 'http.request.method', 'GET');
                 expectMetricDataPointAttribute(dataPoint, 'http.route', '/ohai');
               });
             },
