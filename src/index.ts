@@ -48,6 +48,18 @@ function init() {
     for (let i = 0; i < versionMapping.length; i++) {
       const [semverRange, initFile] = versionMapping[i];
       if (semver.satisfies(nodeJsRuntimeVersion, semverRange)) {
+        if (initFile === './1.x/init' && hasConfigFile()) {
+          // Declarative configuration requires OpenTelemetry JS SDK 2.x
+          if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null) {
+            logProhibitiveError(
+              `OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version (${nodeJsRuntimeVersion}), and DASH0_OTEL_COLLECTOR_BASE_URL is not set.`,
+            );
+            return;
+          }
+          logWarning(
+            `OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version (${nodeJsRuntimeVersion}). The configuration file will be ignored, the distribution will be configured via environment variables instead.`,
+          );
+        }
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         require(initFile);
         return;
@@ -62,10 +74,15 @@ function init() {
 
 if (process.env.DASH0_DISABLE != null && process.env.DASH0_DISABLE.toLowerCase() === 'true') {
   logProhibitiveError(`The distribution has been disabled by setting DASH0_DISABLE=${process.env.DASH0_DISABLE}.`);
-} else if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null) {
-  logProhibitiveError(`DASH0_OTEL_COLLECTOR_BASE_URL is not set.`);
+} else if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null && !hasConfigFile()) {
+  logProhibitiveError(`Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set.`);
 } else {
   init();
+}
+
+function hasConfigFile(): boolean {
+  const configFile = process.env.OTEL_CONFIG_FILE;
+  return configFile != null && configFile.trim() !== '';
 }
 
 function logProhibitiveError(message: string) {
