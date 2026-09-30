@@ -4,6 +4,7 @@
 import { SpanKind } from '@opentelemetry/api';
 import { expect } from 'chai';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import semver from 'semver';
 
 import { SeverityNumber } from '../collector/types/opentelemetry/proto/logs/v1/logs';
@@ -19,9 +20,10 @@ import { expectMatchingMetric } from '../util/expectMatchingMetric';
 import { expectMatchingSpan } from '../util/expectMatchingSpan';
 import { runNpmCommand } from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
-import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
+import ChildProcessWrapper, { ChildProcessWrapperOptions, defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
 import { skipWhenNodeJsVersionIsSmallerThan } from './constants';
+import { initFileForNodeJsVersion, sdk1xInitFile } from '../../src/versionMapping';
 
 const { fail } = expect;
 
@@ -383,7 +385,7 @@ describe('attach', () => {
       await appUnderTest.stop();
     });
 
-    it('should do nothing if DASH0_OTEL_COLLECTOR_BASE_URL is not set', async () => {
+    it('should do nothing if neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set', async () => {
       await delay(1000);
       await sendHttpRequestAndVerifyResponse();
       await delay(2000);
@@ -391,6 +393,213 @@ describe('attach', () => {
       if (await collector().hasTelemetry()) {
         fail('The collector received telemetry data although it should not have received anything.');
       }
+      expect(appUnderTest.getCapturedStderr()).to.include(
+        '[Dash0 OpenTelemetry Distribution] Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set.',
+      );
+    });
+  });
+
+  describe('declarative configuration via OTEL_CONFIG_FILE', () => {
+    function usesSdk1x() {
+      return initFileForNodeJsVersion(process.version) === sdk1xInitFile;
+    }
+
+    const configFile = path.join(__dirname, 'otel-config.yaml');
+
+    function declarativeAppConfiguration(): ChildProcessWrapperOptions {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      delete appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL;
+      appConfiguration.env!.OTEL_CONFIG_FILE = configFile;
+      appConfiguration.env!.TEST_COLLECTOR_BASE_URL = 'http://localhost:4318';
+      return appConfiguration;
+    }
+
+    describe('with OpenTelemetry JS SDK 2.x', () => {
+      before(function () {
+        if (usesSdk1x()) {
+          this.skip();
+        }
+      });
+
+      describe('config file only', () => {
+        let appUnderTest: ChildProcessWrapper;
+
+        before(async () => {
+          appUnderTest = new ChildProcessWrapper(declarativeAppConfiguration());
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest.stop();
+        });
+
+        it('should capture spans as configured in the file', async () => {
+          await waitUntil(async () => {
+            const traces = await sendHttpRequestAndFetchTraceData();
+            expectMatchingSpan(
+              traces,
+              [
+                resource => expectResourceAttribute(resource, 'service.name', 'declarative-config-test'),
+                resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
+                // The distro resource is not applied under a configuration file, see startSdkFromConfigFile in
+                // src/2.x/init.ts.
+                resource => expect(resource.attributes.map(a => a.key)).to.not.include('telemetry.distro.name'),
+              ],
+              [
+                span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
+                span => expectSpanAttribute(span, 'http.route', '/ohai'),
+              ],
+            );
+          });
+        });
+
+        it('should capture metrics as configured in the file', async () => {
+          await waitUntil(async () => {
+            const metrics = await sendHttpRequestAndFetchMetrics();
+            expectMatchingMetric(
+              metrics,
+              [resource => expectResourceAttribute(resource, 'service.name', 'declarative-config-test')],
+              [metric => expect(metric.name).to.equal('http.server.request.duration')],
+            );
+          });
+        });
+
+        it('should capture logs as configured in the file', async () => {
+          await waitUntil(async () => {
+            const logs = await sendHttpRequestAndFetchLogRecords();
+            expectMatchingLogRecord(
+              logs,
+              [resource => expectResourceAttribute(resource, 'service.name', 'declarative-config-test')],
+              [logRecord => expect(logRecord.body).to.deep.equal({ string_value: 'log body' })],
+            );
+          });
+        });
+      });
+
+      describe('config file and DASH0_OTEL_COLLECTOR_BASE_URL', () => {
+        let appUnderTest: ChildProcessWrapper;
+
+        before(async () => {
+          const appConfiguration = declarativeAppConfiguration();
+          // If DASH0_OTEL_COLLECTOR_BASE_URL were used, no telemetry would arrive at the collector.
+          appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL = 'http://non-reachable-host.url:4318';
+          appUnderTest = new ChildProcessWrapper(appConfiguration);
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest.stop();
+        });
+
+        it('should let the config file take precedence and warn', async () => {
+          await waitUntil(async () => {
+            const traces = await sendHttpRequestAndFetchTraceData();
+            expectMatchingSpan(
+              traces,
+              [resource => expectResourceAttribute(resource, 'service.name', 'declarative-config-test')],
+              [span => expectSpanAttribute(span, 'http.route', '/ohai')],
+            );
+          });
+          expect(appUnderTest.getCapturedStderr()).to.include(
+            'Both OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL are set.',
+          );
+        });
+      });
+
+      describe('config file cannot be loaded', () => {
+        let appUnderTest: ChildProcessWrapper;
+
+        before(async () => {
+          const appConfiguration = declarativeAppConfiguration();
+          appConfiguration.env!.OTEL_CONFIG_FILE = path.join(__dirname, 'does-not-exist.yaml');
+          appUnderTest = new ChildProcessWrapper(appConfiguration);
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest.stop();
+        });
+
+        it('should keep the application running without telemetry', async () => {
+          await delay(1000);
+          await sendHttpRequestAndVerifyResponse();
+          await delay(2000);
+
+          if (await collector().hasTelemetry()) {
+            fail('The collector received telemetry data although it should not have received anything.');
+          }
+          expect(appUnderTest.getCapturedStderr()).to.include(
+            'Could not load OpenTelemetry configuration, SDK will not be setup',
+          );
+        });
+      });
+    });
+
+    describe('with OpenTelemetry JS SDK 1.x', () => {
+      before(function () {
+        if (!usesSdk1x()) {
+          this.skip();
+        }
+      });
+
+      describe('config file and DASH0_OTEL_COLLECTOR_BASE_URL', () => {
+        let appUnderTest: ChildProcessWrapper;
+
+        before(async () => {
+          const appConfiguration = declarativeAppConfiguration();
+          appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL = 'http://localhost:4318';
+          appUnderTest = new ChildProcessWrapper(appConfiguration);
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest.stop();
+        });
+
+        it('should ignore the config file, warn, and use DASH0_OTEL_COLLECTOR_BASE_URL', async () => {
+          await waitUntil(async () => {
+            const traces = await sendHttpRequestAndFetchTraceData();
+            expectMatchingSpan(
+              traces,
+              [
+                // The distro resource is only applied on the environment variable path.
+                resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+              ],
+              [span => expectSpanAttribute(span, 'http.route', '/ohai')],
+            );
+          });
+          expect(appUnderTest.getCapturedStderr()).to.include(
+            'OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version',
+          );
+        });
+      });
+
+      describe('config file only', () => {
+        let appUnderTest: ChildProcessWrapper;
+
+        before(async () => {
+          appUnderTest = new ChildProcessWrapper(declarativeAppConfiguration());
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest.stop();
+        });
+
+        it('should do nothing', async () => {
+          await delay(1000);
+          await sendHttpRequestAndVerifyResponse();
+          await delay(2000);
+
+          if (await collector().hasTelemetry()) {
+            fail('The collector received telemetry data although it should not have received anything.');
+          }
+          expect(appUnderTest.getCapturedStderr()).to.include(
+            'configuration files are not supported on this Node.js runtime version',
+          );
+          expect(appUnderTest.getCapturedStderr()).to.include('DASH0_OTEL_COLLECTOR_BASE_URL is not set.');
+        });
+      });
     });
   });
 
