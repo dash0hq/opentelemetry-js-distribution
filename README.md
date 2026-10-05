@@ -70,8 +70,76 @@ runtime will exit on its own anyway).
 
 ### <a id="DASH0_OTEL_COLLECTOR_BASE_URL">DASH0_OTEL_COLLECTOR_BASE_URL</a>
 
-The base URL of the OpenTelemetry collector that the distribution will send data to.
-It defaults to `http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318`.
+The base URL of the OpenTelemetry collector that the distribution will send data to, for example
+`http://localhost:4318`.
+The distribution appends `/v1/traces`, `/v1/metrics` and `/v1/logs` to it.
+
+This variable is required unless a [declarative configuration file](#declarative-configuration) is used.
+If neither is set, the distribution does not start.
+When both are set, the configuration file takes precedence and `DASH0_OTEL_COLLECTOR_BASE_URL` is ignored, with a
+warning.
+
+### <a id="declarative-configuration">Declarative configuration</a>
+
+Instead of environment variables, the OpenTelemetry SDK can be configured with an OpenTelemetry
+[declarative configuration file](https://opentelemetry.io/docs/languages/sdk-configuration/declarative-configuration/),
+by setting `OTEL_CONFIG_FILE` to its path.
+The file then is the complete SDK configuration: it defines the exporters, endpoints, processors, sampling and the
+resource.
+As the specification requires, other `OTEL_*` environment variables are ignored unless the file references them via
+`${VARIABLE}` substitution.
+
+A minimal file that exports all three signals to a collector looks like this:
+
+```yaml
+file_format: "1.0"
+resource:
+  attributes:
+    - name: service.name
+      value: ${OTEL_SERVICE_NAME:-unknown_service}
+  attributes_list: ${OTEL_RESOURCE_ATTRIBUTES:-}
+tracer_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/traces
+meter_provider:
+  readers:
+    - periodic:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/metrics
+logger_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/logs
+```
+
+Declarative configuration requires Node.js 18.19.0 or later, excluding 20.0.0 to 20.5.1.
+On older Node.js versions, the configuration file is ignored with a warning, and the distribution falls back to
+`DASH0_OTEL_COLLECTOR_BASE_URL`; if that is not set either, the distribution does not start.
+
+If the file cannot be loaded, an error is logged and the application keeps running without telemetry.
+
+Because the file defines the whole SDK, the following do not apply when a configuration file is used:
+* [DASH0_AUTOMATIC_SERVICE_NAME](#DASH0_AUTOMATIC_SERVICE_NAME): the service name is not derived from `package.json`;
+  set `service.name` in the file instead.
+* [DASH0_DEBUG_PRINT_SPANS](#DASH0_DEBUG_PRINT_SPANS): add a span processor with a `console` exporter to the file
+  instead.
+* The `k8s.pod.uid` resource attribute, which the distribution otherwise detects when running in Kubernetes.
+* The `telemetry.distro.name` and `telemetry.distro.version` resource attributes.
+* `OTEL_METRIC_EXPORT_INTERVAL` and `OTEL_METRIC_EXPORT_TIMEOUT`: set `interval` and `timeout` on the periodic metric
+  reader in the file instead.
+
+These continue to work as described above:
+[DASH0_BOOTSTRAP_SPAN](#DASH0_BOOTSTRAP_SPAN), [DASH0_DEBUG](#DASH0_DEBUG), [DASH0_DISABLE](#DASH0_DISABLE),
+[DASH0_ENABLE_FS_INSTRUMENTATION](#DASH0_ENABLE_FS_INSTRUMENTATION),
+[DASH0_FLUSH_ON_SIGTERM_SIGINT](#DASH0_FLUSH_ON_SIGTERM_SIGINT),
+[DASH0_FLUSH_ON_EMPTY_EVENT_LOOP](#DASH0_FLUSH_ON_EMPTY_EVENT_LOOP), and
+[enabling only specific instrumentations](#enabling-only-specific-instrumentations).
 
 ### Enabling only specific instrumentations
 
