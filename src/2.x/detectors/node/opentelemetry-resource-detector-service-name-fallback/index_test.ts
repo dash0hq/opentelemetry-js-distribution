@@ -83,6 +83,35 @@ describe('service name fallback', () => {
     expect(attributes[SEMRESATTRS_SERVICE_VERSION]).to.not.exist;
   });
 
+  describe('when used from a declarative configuration file', () => {
+    it('uses OTEL_SERVICE_NAME as the service name', async () => {
+      givenAValidPackageJsonFile();
+      process.env.OTEL_SERVICE_NAME = ' from-env ';
+      const result = new ServiceNameFallbackDetector({ declarative: true }).detect();
+      const attributes = await waitForAsyncDetection(result);
+      expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, 'from-env');
+      expect(attributes[SEMRESATTRS_SERVICE_VERSION]).to.not.exist;
+    });
+
+    it('does not set a service name if DASH0_AUTOMATIC_SERVICE_NAME is false', async () => {
+      givenAValidPackageJsonFile();
+      process.env.DASH0_AUTOMATIC_SERVICE_NAME = 'false';
+      const result = new ServiceNameFallbackDetector({ declarative: true }).detect();
+      const attributes = await waitForAsyncDetection(result);
+      expect(attributes[SEMRESATTRS_SERVICE_NAME]).to.not.exist;
+      expect(attributes[SEMRESATTRS_SERVICE_VERSION]).to.not.exist;
+    });
+
+    it('ignores a service name in OTEL_RESOURCE_ATTRIBUTES', async () => {
+      givenAValidPackageJsonFile();
+      process.env.OTEL_RESOURCE_ATTRIBUTES = 'service.name=already-set';
+      const result = new ServiceNameFallbackDetector({ declarative: true }).detect();
+      const attributes = await waitForAsyncDetection(result);
+      expect(attributes).to.have.property(SEMRESATTRS_SERVICE_NAME, '@example/app-under-test');
+      expect(attributes).to.have.property(SEMRESATTRS_SERVICE_VERSION, '2.13.47');
+    });
+  });
+
   it('sets a service name if OTEL_SERVICE_NAME is set to an empty string', async () => {
     givenAValidPackageJsonFile();
     process.env.OTEL_SERVICE_NAME = '   ';

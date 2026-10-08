@@ -6,7 +6,24 @@ import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentele
 
 import { readPackageJson } from '../../../../util/packageJsonUtil';
 
+export interface ServiceNameFallbackDetectorOptions {
+  /**
+   * Set when the detector is named in a declarative configuration file, where the caller only applies it if the file
+   * does not produce a service name. OTEL_SERVICE_NAME is then used as the service name if set, and
+   * DASH0_AUTOMATIC_SERVICE_NAME=false still turns the package.json fallback off. OTEL_RESOURCE_ATTRIBUTES is not
+   * consulted, as it only applies under a configuration file if the file references it, in which case the caller
+   * sees the service name it sets.
+   */
+  declarative?: boolean;
+}
+
 export default class ServiceNameFallbackDetector implements ResourceDetector {
+  private readonly declarative: boolean;
+
+  constructor(options: ServiceNameFallbackDetectorOptions = {}) {
+    this.declarative = options.declarative ?? false;
+  }
+
   detect(): DetectedResource {
     const serviceNamePromise = this.detectServiceNameFallback();
     const attrNames = [SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION];
@@ -18,7 +35,14 @@ export default class ServiceNameFallbackDetector implements ResourceDetector {
   }
 
   private async detectServiceNameFallback(): Promise<any> {
-    if (
+    if (this.declarative) {
+      if (hasOTelServiceNameSet()) {
+        return { [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME!.trim() };
+      }
+      if (hasOptedOutOfServiceNameFallbackDetection()) {
+        return {};
+      }
+    } else if (
       hasOptedOutOfServiceNameFallbackDetection() ||
       hasOTelServiceNameSet() ||
       hasServiceNameSetViaOTelResourceAttributesEnvVar()

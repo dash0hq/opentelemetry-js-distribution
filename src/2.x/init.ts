@@ -21,6 +21,7 @@ import { NodeSDK, NodeSDKConfiguration, startNodeSDK } from '@opentelemetry/sdk-
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 
+import { installDeclarativeResourceDetectors, serviceNameDetectorName } from './declarativeResourceDetectors';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
@@ -94,7 +95,8 @@ function startSdkFromConfigFile() {
   // With a configuration file, the file is the complete SDK configuration: startNodeSDK builds all providers,
   // exporters and the resource from it, and only accepts the instrumentations from us. Environment variables other
   // than those the file references via ${...} substitution are ignored, as the specification requires. This also means
-  // that the Dash0 resource detectors, the telemetry.distro.* attributes and DASH0_DEBUG_PRINT_SPANS do not apply.
+  // that DASH0_DEBUG_PRINT_SPANS does not apply, and that the Dash0 resource detectors and the telemetry.distro.*
+  // attributes only apply if the file names them as detectors (see declarativeResourceDetectors.ts).
   if (baseUrl) {
     console.warn(
       logPrefix,
@@ -102,6 +104,17 @@ function startSdkFromConfigFile() {
     );
   }
   printDebugStdout(`Starting OpenTelemetry SDK from configuration file ${configFile}.`);
+  const installError = installDeclarativeResourceDetectors({
+    dash0_distribution: { detect: () => ({ attributes: distroResource().attributes }) },
+    dash0_kubernetes: new PodUidDetector(),
+    [serviceNameDetectorName]: new ServiceNameFallbackDetector({ declarative: true }),
+  });
+  if (installError) {
+    console.error(
+      logPrefix,
+      `Cannot register the Dash0 resource detectors for configuration files (${installError}). A configuration file that names dash0_distribution, dash0_kubernetes or dash0_service_name as a resource detector will fail to load.`,
+    );
+  }
   // startNodeSDK does not throw on an invalid or missing file, it logs the problem via diag and returns a no-op SDK.
   const configuredInstrumentations = instrumentations();
   const sdk = startNodeSDK({ instrumentations: configuredInstrumentations });

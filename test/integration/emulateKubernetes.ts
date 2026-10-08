@@ -5,7 +5,8 @@ import fs from 'node:fs/promises';
 import sinon from 'sinon';
 
 const sandbox = sinon.createSandbox();
-const readFileStub = sandbox.stub(fs, 'readFile');
+// Any other file, e.g. the application's package.json for the service name fallback, is read as usual.
+const readFileStub = sandbox.stub(fs, 'readFile').callThrough();
 stubFile('/etc/hosts', '# Kubernetes-managed hosts file.\n127.0.0.1\tlocalhost');
 stubFile(
   '/proc/self/cgroup',

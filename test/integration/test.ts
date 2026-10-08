@@ -404,12 +404,10 @@ describe('attach', () => {
       return initFileForNodeJsVersion(process.version) === sdk1xInitFile;
     }
 
-    const configFile = path.join(__dirname, 'otel-config.yaml');
-
-    function declarativeAppConfiguration(): ChildProcessWrapperOptions {
+    function declarativeAppConfiguration(configFile = 'otel-config.yaml'): ChildProcessWrapperOptions {
       const appConfiguration = defaultAppConfiguration(appPort);
       delete appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL;
-      appConfiguration.env!.OTEL_CONFIG_FILE = configFile;
+      appConfiguration.env!.OTEL_CONFIG_FILE = path.join(__dirname, configFile);
       appConfiguration.env!.TEST_COLLECTOR_BASE_URL = 'http://localhost:4318';
       return appConfiguration;
     }
@@ -441,8 +439,8 @@ describe('attach', () => {
               [
                 resource => expectResourceAttribute(resource, 'service.name', 'declarative-config-test'),
                 resource => expectResourceAttribute(resource, 'telemetry.sdk.language', 'nodejs'),
-                // The distro resource is not applied under a configuration file, see startSdkFromConfigFile in
-                // src/2.x/init.ts.
+                // The distro resource is not applied under a configuration file unless the file names the
+                // dash0_distribution detector, see startSdkFromConfigFile in src/2.x/init.ts.
                 resource => expect(resource.attributes.map(a => a.key)).to.not.include('telemetry.distro.name'),
               ],
               [
@@ -471,6 +469,39 @@ describe('attach', () => {
               logs,
               [resource => expectResourceAttribute(resource, 'service.name', 'declarative-config-test')],
               [logRecord => expect(logRecord.body).to.deep.equal({ string_value: 'log body' })],
+            );
+          });
+        });
+      });
+
+      describe('config file naming the Dash0 resource detectors', () => {
+        let appUnderTest: ChildProcessWrapper;
+
+        before(async () => {
+          const appConfiguration = declarativeAppConfiguration('otel-config-dash0-detectors.yaml');
+          appConfiguration.emulateKubernetesPodUid = true;
+          appUnderTest = new ChildProcessWrapper(appConfiguration);
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest.stop();
+        });
+
+        it('should apply the Dash0 resource detectors', async () => {
+          await waitUntil(async () => {
+            const traces = await sendHttpRequestAndFetchTraceData();
+            expectMatchingSpan(
+              traces,
+              [
+                resource => expectResourceAttribute(resource, 'telemetry.distro.name', 'dash0-nodejs'),
+                resource => expectResourceAttribute(resource, 'k8s.pod.uid', 'f57400dc-94ce-4806-a52e-d2726f448f15'),
+                resource =>
+                  expectResourceAttribute(resource, 'service.name', 'dash0-app-under-test-express-typescript'),
+                resource => expectResourceAttribute(resource, 'service.version', '1.0.0'),
+                resource => expect(resource.attributes.map(a => a.key)).to.include('process.pid'),
+              ],
+              [span => expectSpanAttribute(span, 'http.route', '/ohai')],
             );
           });
         });
