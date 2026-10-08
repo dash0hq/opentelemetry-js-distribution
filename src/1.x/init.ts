@@ -239,8 +239,10 @@ async function gracefulSdkShutdown(signal?: string) {
 
 function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, signal?: string) {
   let setTimeoutId: NodeJS.Timeout;
+  let timedOut = false;
   const timeoutPromise = new Promise(resolve => {
     setTimeoutId = setTimeout(() => {
+      timedOut = true;
       resolve(null);
     }, timeoutMillis);
   });
@@ -257,6 +259,12 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
       // re-raise the signal to exit the process
       printDebugStdout('Re-raising signal', signal);
       process.kill(process.pid, signal);
+    } else if (timedOut) {
+      // The shutdown is still in progress and might keep the event loop alive for much longer than the timeout, for
+      // example via the OTLP exporters' retry backoff timers when the collector is unreachable. Exit explicitly
+      // (keeping process.exitCode) instead of waiting for the event loop to drain.
+      printDebugStdout('Timeout for graceful SDK shutdown exceeded, exiting.');
+      process.exit();
     }
   });
 }

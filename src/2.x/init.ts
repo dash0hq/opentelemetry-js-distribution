@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 Dash0 Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { SpanKind, trace } from '@opentelemetry/api';
+import { SpanKind, metrics, trace } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
@@ -17,10 +17,11 @@ import {
 } from '@opentelemetry/resources';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
-import { NodeSDK, NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import { NodeSDK, NodeSDKConfiguration, startNodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 
+import { installDeclarativeResourceDetectors, serviceNameDetectorName } from './declarativeResourceDetectors';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
@@ -63,34 +64,77 @@ if (packageJson) {
   }
 }
 
-printDebugStdout('Starting NodeSDK.');
-
 let sdkShutdownHasBeenCalled = false;
 
-// Note: There is a check in index.ts that this env var is set.
+// Note: There is a check in index.ts that at least one of OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL is set.
+const configFile = getStringFromEnv('OTEL_CONFIG_FILE');
 const baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
 
-const configuration: Partial<NodeSDKConfiguration> = {
-  spanProcessors: spanProcessors(),
-  metricReader: metricsReader(),
-  logRecordProcessor: logRecordProcessor(),
-  instrumentations: [
-    //
-    getNodeAutoInstrumentations(createInstrumentationConfig()),
-    kafkaJsInstrumentation,
-  ],
-  resource: defaultResource().merge(distroResource()),
-  resourceDetectors: resourceDetectors(),
-};
-
-const sdk = new NodeSDK(configuration);
-
-sdk.start();
+const sdk: { shutdown: () => Promise<void> } = configFile ? startSdkFromConfigFile() : startSdkFromEnvironment();
 
 createBootstrapSpanIfRequested();
 installProcessExitHandlers();
 
-printDebugStdout('NodeSDK started.');
+function startSdkFromEnvironment(): NodeSDK {
+  printDebugStdout('Starting NodeSDK.');
+  const configuration: Partial<NodeSDKConfiguration> = {
+    spanProcessors: spanProcessors(),
+    metricReader: metricsReader(),
+    logRecordProcessor: logRecordProcessor(),
+    instrumentations: instrumentations(),
+    resource: defaultResource().merge(distroResource()),
+    resourceDetectors: resourceDetectors(),
+  };
+  const nodeSdk = new NodeSDK(configuration);
+  nodeSdk.start();
+  printDebugStdout('NodeSDK started.');
+  return nodeSdk;
+}
+
+function startSdkFromConfigFile() {
+  // With a configuration file, the file is the complete SDK configuration: startNodeSDK builds all providers,
+  // exporters and the resource from it, and only accepts the instrumentations from us. Environment variables other
+  // than those the file references via ${...} substitution are ignored, as the specification requires. This also means
+  // that DASH0_DEBUG_PRINT_SPANS does not apply, and that the Dash0 resource detectors and the telemetry.distro.*
+  // attributes only apply if the file names them as detectors (see declarativeResourceDetectors.ts).
+  if (baseUrl) {
+    console.warn(
+      logPrefix,
+      `Both OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL are set. The configuration file ${configFile} takes precedence, DASH0_OTEL_COLLECTOR_BASE_URL will be ignored.`,
+    );
+  }
+  printDebugStdout(`Starting OpenTelemetry SDK from configuration file ${configFile}.`);
+  const installError = installDeclarativeResourceDetectors({
+    dash0_distribution: { detect: () => ({ attributes: distroResource().attributes }) },
+    dash0_kubernetes: new PodUidDetector(),
+    [serviceNameDetectorName]: new ServiceNameFallbackDetector({ declarative: true }),
+  });
+  if (installError) {
+    console.error(
+      logPrefix,
+      `Cannot register the Dash0 resource detectors for configuration files (${installError}). A configuration file that names dash0_distribution, dash0_kubernetes or dash0_service_name as a resource detector will fail to load.`,
+    );
+  }
+  // startNodeSDK does not throw on an invalid or missing file, it logs the problem via diag and returns a no-op SDK.
+  const configuredInstrumentations = instrumentations();
+  const sdk = startNodeSDK({ instrumentations: configuredInstrumentations });
+  // Workaround: startNodeSDK (sdk-node 0.222) registers the instrumentations before it creates and registers the global
+  // MeterProvider. Unlike the trace and logs APIs, the metrics API has no proxy provider, so the instrumentations would
+  // stay bound to the no-op MeterProvider and never record any metrics. Rebind them now that the global MeterProvider is
+  // set.
+  const meterProvider = metrics.getMeterProvider();
+  configuredInstrumentations.flat().forEach(instrumentation => instrumentation.setMeterProvider(meterProvider));
+  printDebugStdout('OpenTelemetry SDK started from configuration file.');
+  return sdk;
+}
+
+function instrumentations() {
+  return [
+    //
+    getNodeAutoInstrumentations(createInstrumentationConfig()),
+    kafkaJsInstrumentation,
+  ];
+}
 
 function spanProcessors(): SpanProcessor[] {
   const spanProcessors: SpanProcessor[] = [
@@ -125,11 +169,11 @@ function metricsReader(): PeriodicExportingMetricReader {
 }
 
 function logRecordProcessor() {
-  return new BatchLogRecordProcessor(
-    new OTLPLogExporter({
+  return new BatchLogRecordProcessor({
+    exporter: new OTLPLogExporter({
       url: `${baseUrl}/v1/logs`,
     }),
-  );
+  });
 }
 
 function createInstrumentationConfig(): any {
@@ -232,8 +276,10 @@ async function gracefulSdkShutdown(signal?: string) {
 
 function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, signal?: string) {
   let setTimeoutId: NodeJS.Timeout;
+  let timedOut = false;
   const timeoutPromise = new Promise(resolve => {
     setTimeoutId = setTimeout(() => {
+      timedOut = true;
       resolve(null);
     }, timeoutMillis);
   });
@@ -250,6 +296,9 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
       // re-raise the signal to exit the process
       printDebugStdout('Re-raising signal', signal);
       process.kill(process.pid, signal);
+    } else if (timedOut) {
+      printDebugStdout('Timeout for graceful SDK shutdown exceeded, exiting.');
+      process.exit();
     }
   });
 }
