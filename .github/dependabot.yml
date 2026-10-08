@@ -19,6 +19,16 @@ updates:
         versions:
           - ">=12.0.0"
     groups:
+      # The OpenTelemetry packages of the 2.x line are updated together in one pull request, so that they move as a
+      # matched set, and the tests run against the combination that gets released. This matters in particular for
+      # @opentelemetry/sdk-node, which is pinned to an exact version because src/2.x/declarativeResourceDetectors.ts
+      # patches its internals. The -1.x aliases are pinned to the last 1.x-compatible releases and stay excluded.
+      # Groups are matched in order, so this one needs to come before production-dependencies.
+      opentelemetry:
+        patterns:
+          - "@opentelemetry/*"
+        exclude-patterns:
+          - "@opentelemetry/*-1.x"
       production-dependencies:
         dependency-type: "production"
       development-dependencies:
