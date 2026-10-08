@@ -30,6 +30,14 @@ const { fail } = expect;
 const appPort = 1302;
 let expectedDistroVersion: number;
 
+function usesSdk1x() {
+  return initFileForNodeJsVersion(process.version) === sdk1xInitFile;
+}
+
+// The 1.x line still emits the old HTTP semantic conventions; the 2.x line only emits the stable ones.
+const httpServerDurationMetric = usesSdk1x() ? 'http.server.duration' : 'http.server.request.duration';
+const httpMethodAttribute = usesSdk1x() ? 'http.method' : 'http.request.method';
+
 describe('attach', () => {
   before(async function () {
     if (semver.lt(process.version, skipWhenNodeJsVersionIsSmallerThan)) {
@@ -90,13 +98,13 @@ describe('attach', () => {
             resource => expectResourceAttribute(resource, 'telemetry.distro.version', expectedDistroVersion),
           ],
           [
-            metric => expect(metric.name).to.equal('http.server.request.duration'),
+            metric => expect(metric.name).to.equal(httpServerDurationMetric),
             metric => {
               const dataPoints = metric.histogram?.data_points;
               expect(dataPoints).to.exist;
               expect(dataPoints).to.not.be.empty;
               dataPoints?.forEach(dataPoint => {
-                expectMetricDataPointAttribute(dataPoint, 'http.request.method', 'GET');
+                expectMetricDataPointAttribute(dataPoint, httpMethodAttribute, 'GET');
                 expectMetricDataPointAttribute(dataPoint, 'http.route', '/ohai');
               });
             },
@@ -400,10 +408,6 @@ describe('attach', () => {
   });
 
   describe('declarative configuration via OTEL_CONFIG_FILE', () => {
-    function usesSdk1x() {
-      return initFileForNodeJsVersion(process.version) === sdk1xInitFile;
-    }
-
     function declarativeAppConfiguration(configFile = 'otel-config.yaml'): ChildProcessWrapperOptions {
       const appConfiguration = defaultAppConfiguration(appPort);
       delete appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL;
