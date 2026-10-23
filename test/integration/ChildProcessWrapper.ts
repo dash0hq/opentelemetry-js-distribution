@@ -15,6 +15,8 @@ export interface ChildProcessWrapperOptions {
   label?: string;
   useTsNode?: boolean;
   useDistro?: boolean;
+  // The module to load as the distribution, defaults to the src directory of this repository.
+  distroPath?: string;
   emulateKubernetesPodUid?: boolean;
   args?: string[];
   env?: { [key: string]: string };
@@ -22,7 +24,7 @@ export interface ChildProcessWrapperOptions {
 }
 
 const repoRoot = path.join(__dirname, '..', '..');
-const distroPath = path.join(repoRoot, 'src');
+const defaultDistroPath = path.join(repoRoot, 'src');
 const emulateKubernetesPath = path.join(repoRoot, 'test', 'integration', 'emulateKubernetes');
 
 export default class ChildProcessWrapper {
@@ -85,7 +87,7 @@ export default class ChildProcessWrapper {
       this.addExecArgvs(forkOptions, '--require', emulateKubernetesPath);
     }
     if (this.options.useDistro) {
-      this.addExecArgvs(forkOptions, '--require', distroPath);
+      this.addExecArgvs(forkOptions, '--require', this.options.distroPath ?? defaultDistroPath);
     }
     if (this.options.env) {
       forkOptions.env = this.options.env;
