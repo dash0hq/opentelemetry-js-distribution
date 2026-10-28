@@ -12,7 +12,10 @@ import {
   wrapCreateResourceFromConfig,
 } from './declarativeResourceDetectors';
 
-// The module installDeclarativeResourceDetectors patches, located the same way.
+// The module installDeclarativeResourceDetectors patches, located the same way. The specifier has no extension on
+// purpose: it only resolves create-from-config.js, so a .cjs-only sdk-node build fails this test at load time. That
+// build might bind createResourceFromConfig locally in startNodeSDK, which the patch cannot reach, so it needs a
+// fresh look rather than a .cjs extension added here.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const createFromConfigModule = require(
   path.join(path.dirname(require.resolve('@opentelemetry/sdk-node')), 'create-from-config'),
@@ -87,6 +90,14 @@ describe('declarative resource detectors', () => {
     expect(attributes).to.have.property('service.name', 'from-package-json');
   });
 
+  it('lets other attributes from the file take precedence over the service name fallback', () => {
+    const attributes = wrapped(
+      resourceConfig(['dash0_service_name'], [{ name: 'service.version', value: '9.9.9' }]),
+    ).attributes;
+    expect(attributes).to.have.property('service.name', 'from-package-json');
+    expect(attributes).to.have.property('service.version', '9.9.9');
+  });
+
   it('does not apply the service name fallback when the file sets a service name', () => {
     const attributes = wrapped(
       resourceConfig(['dash0_service_name'], [{ name: 'service.name', value: 'my-service' }]),
@@ -97,6 +108,13 @@ describe('declarative resource detectors', () => {
 
   it('still rejects unknown detector names', () => {
     expect(() => wrapped(resourceConfig(['dash0_kubernetes', 'no_such_detector']))).to.throw();
+  });
+
+  it('rejects a detector entry with more than one key', () => {
+    const config = {
+      'detection/development': { detectors: [{ dash0_kubernetes: {}, host: {} }] },
+    };
+    expect(() => wrapped(config)).to.throw();
   });
 
   describe('installation', () => {
