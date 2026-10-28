@@ -21,7 +21,7 @@
 
 import path from 'node:path';
 
-import { detectResources, Resource, ResourceDetector } from '@opentelemetry/resources';
+import { detectResources, Resource, ResourceDetector, resourceFromAttributes } from '@opentelemetry/resources';
 
 export const serviceNameDetectorName = 'dash0_service_name';
 
@@ -31,8 +31,8 @@ export type CreateResourceFromConfig = (resourceConfig?: any) => Resource;
  * Wraps sdk-node's createResourceFromConfig so that the given detectors can be named in a configuration file.
  *
  * Attributes from these detectors rank below everything upstream produces, i.e. below the file's own attributes and
- * upstream's detectors, with one exception: the service name fallback only applies when upstream did not produce a
- * service name other than the SDK's unknown_service default.
+ * upstream's detectors, with one exception: the service.name from the service name fallback replaces the SDK's
+ * unknown_service default. It only applies when upstream did not produce any other service name.
  */
 export function wrapCreateResourceFromConfig(
   original: CreateResourceFromConfig,
@@ -43,7 +43,9 @@ export function wrapCreateResourceFromConfig(
     const requested: string[] = [];
     const remaining: unknown[] = [];
     for (const entry of detection?.detectors ?? []) {
-      const name = entry != null && typeof entry === 'object' ? Object.keys(entry)[0] : undefined;
+      // Entries with more than one key go to upstream unchanged, which rejects them.
+      const keys = entry != null && typeof entry === 'object' ? Object.keys(entry) : [];
+      const name = keys.length === 1 ? keys[0] : undefined;
       if (name !== undefined && Object.prototype.hasOwnProperty.call(detectors, name)) {
         requested.push(name);
       } else {
@@ -66,7 +68,14 @@ export function wrapCreateResourceFromConfig(
         : upstreamResource;
 
     if (requested.includes(serviceNameDetectorName) && hasDefaultServiceName(resource)) {
-      resource = resource.merge(detectResources({ detectors: [detectors[serviceNameDetectorName]] }));
+      // Only service.name outranks upstream, to replace the unknown_service default. Everything else the fallback
+      // detects, e.g. service.version, stays below the file's attributes.
+      const fallback = detectResources({ detectors: [detectors[serviceNameDetectorName]] });
+      const serviceName = fallback.getRawAttributes().find(([key]) => key === 'service.name');
+      resource = fallback.merge(resource);
+      if (serviceName !== undefined) {
+        resource = resource.merge(resourceFromAttributes({ 'service.name': serviceName[1] }));
+      }
     }
     return resource;
   };
@@ -108,13 +117,14 @@ export function installDeclarativeResourceDetectors(detectors: Record<string, Re
   }
   const directory = path.dirname(entryPoint);
   const candidates = ['create-from-config.js', 'create-from-config.cjs'].map(file => path.join(directory, file));
+  const loadErrors: string[] = [];
   for (const candidate of candidates) {
     let module: any;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       module = require(candidate);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
+      loadErrors.push(`${candidate}: ${e}`);
       continue;
     }
     if (typeof module?.createResourceFromConfig !== 'function') {
@@ -123,5 +133,5 @@ export function installDeclarativeResourceDetectors(detectors: Record<string, Re
     module.createResourceFromConfig = wrapCreateResourceFromConfig(module.createResourceFromConfig, detectors);
     return undefined;
   }
-  return `none of ${candidates.join(', ')} could be loaded`;
+  return `none of the candidate modules could be loaded (${loadErrors.join('; ')})`;
 }
