@@ -3,14 +3,9 @@
 
 import semver from 'semver';
 
+import { initFileForNodeJsVersion, sdk1xInitFile } from './versionMapping';
+
 const lowerBound = '14.0.0';
-const versionMapping = [
-  // OpenTelemetry JS SDK 1.x, supports Node.js 14.x - 18.18.2, and 20.0.0-20.5.1.
-  ['>=16.0.0 <18.19.0', './1.x/init'],
-  ['>=20.0.0 <20.6.0', './1.x/init'],
-  // OpenTelemetry JS SDK 2.x, supports Node.js >= 18.19.0 || >= 20.6.0
-  ['>=18.19.0', './2.x/init'],
-];
 
 // Maintenance note: This needs to be kept in sync with the version ranges in .github/workflows/verify.yaml, property
 // jobs.verify.strategy.matrix.node-version.
@@ -45,13 +40,23 @@ function init() {
       );
     }
 
-    for (let i = 0; i < versionMapping.length; i++) {
-      const [semverRange, initFile] = versionMapping[i];
-      if (semver.satisfies(nodeJsRuntimeVersion, semverRange)) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require(initFile);
-        return;
+    const initFile = initFileForNodeJsVersion(nodeJsRuntimeVersion);
+    if (initFile) {
+      if (initFile === sdk1xInitFile && hasConfigFile()) {
+        // Declarative configuration requires OpenTelemetry JS SDK 2.x
+        if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null) {
+          logProhibitiveError(
+            `OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version (${nodeJsRuntimeVersion}), and DASH0_OTEL_COLLECTOR_BASE_URL is not set.`,
+          );
+          return;
+        }
+        logWarning(
+          `OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version (${nodeJsRuntimeVersion}). The configuration file will be ignored, the distribution will be configured via environment variables instead.`,
+        );
       }
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require(initFile);
+      return;
     }
 
     logProhibitiveError(`No matching version range found for Node.js runtime version ${nodeJsRuntimeVersion}.`);
@@ -62,10 +67,15 @@ function init() {
 
 if (process.env.DASH0_DISABLE != null && process.env.DASH0_DISABLE.toLowerCase() === 'true') {
   logProhibitiveError(`The distribution has been disabled by setting DASH0_DISABLE=${process.env.DASH0_DISABLE}.`);
-} else if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null) {
-  logProhibitiveError(`DASH0_OTEL_COLLECTOR_BASE_URL is not set.`);
+} else if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null && !hasConfigFile()) {
+  logProhibitiveError(`Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set.`);
 } else {
   init();
+}
+
+function hasConfigFile(): boolean {
+  const configFile = process.env.OTEL_CONFIG_FILE;
+  return configFile != null && configFile.trim() !== '';
 }
 
 function logProhibitiveError(message: string) {
