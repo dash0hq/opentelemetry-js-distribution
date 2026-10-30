@@ -15,18 +15,29 @@ export async function runNpmCommand(command: string, workingDirectory: string) {
   await runCommand(`${pathToNpm} ${command}`, workingDirectory);
 }
 
-export async function runCommand(command: string, workingDirectory: string) {
-  const originalWorkingDirectory = process.cwd();
-  process.chdir(workingDirectory);
-  try {
-    console.log(`Running "${command}" in directory ${process.cwd()}.`);
-    const execAsync = promisify(childProcess.exec).bind(childProcess);
-    const { stdout, stderr } = await execAsync(command);
-    echoOutputWithIndentation(command, 'stdout', stdout);
-    echoOutputWithIndentation(command, 'stderr', stderr);
-  } finally {
-    process.chdir(originalWorkingDirectory);
+const appsWithInstalledDependencies = new Set<string>();
+
+/**
+ * Runs npm ci in the given test app directory, once per test run.
+ */
+export async function installAppDependencies(appDirectory: string) {
+  const resolvedAppDirectory = path.resolve(appDirectory);
+  if (appsWithInstalledDependencies.has(resolvedAppDirectory)) {
+    return;
   }
+  await runNpmCommand('ci --quiet --no-fund --no-audit', appDirectory);
+  appsWithInstalledDependencies.add(resolvedAppDirectory);
+}
+
+export async function runCommand(command: string, workingDirectory: string) {
+  // Passing cwd to exec instead of calling process.chdir keeps a command that outlives a timed-out hook from changing
+  // the working directory of the following tests.
+  const cwd = path.resolve(workingDirectory);
+  console.log(`Running "${command}" in directory ${cwd}.`);
+  const execAsync = promisify(childProcess.exec).bind(childProcess);
+  const { stdout, stderr } = await execAsync(command, { cwd });
+  echoOutputWithIndentation(command, 'stdout', stdout);
+  echoOutputWithIndentation(command, 'stderr', stderr);
 }
 
 function echoOutputWithIndentation(command: string, label: string, output: string) {

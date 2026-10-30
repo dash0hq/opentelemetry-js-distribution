@@ -87,3 +87,14 @@ and [@opentelemetry/instrumentation-nestjs-core](https://github.com/open-telemet
 instrumentations, set `OTEL_NODE_ENABLED_INSTRUMENTATIONS="http,nestjs-core"`.
 
 See https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#usage-auto-instrumentation for more information.
+
+Using the OpenTelemetry API in Your Application
+-----------------------------------------------
+
+Spans and metrics that your application creates with `@opentelemetry/api` are recorded by the distribution when your
+application's copy of `@opentelemetry/api` has the same or an older minor version than the copy bundled with the
+distribution, currently 1.10.
+A newer minor version of `@opentelemetry/api` in your application does not accept the distribution's registration and
+records nothing, so stay on 1.10.x until a distribution release supports the newer version.
+The distribution bundles its dependencies, so `overrides` or `resolutions` in your application's `package.json` do not
+change the version it uses.

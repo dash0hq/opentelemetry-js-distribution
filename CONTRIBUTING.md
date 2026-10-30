@@ -20,3 +20,20 @@ Run `npm install` in the root of the repository after cloning the repository.
 * Use `npm run test:integration` to only run integration tests, but no unit tests.
 * Use `npm run test:coverage` to run unit and integration tests and generate a coverage report.
 * Use `npm run build` to create a production build in the `dist` folder.
+
+## Dependencies
+
+The 1.x and 2.x OpenTelemetry SDK packages declare a peer dependency on `@opentelemetry/api` below 1.10.0, but they
+must share a single copy of `@opentelemetry/api` 1.10.0 with the rest of the distribution. An application that depends
+on `@opentelemetry/api` 1.10.0 itself only sees the SDK if the SDK registered its globals with that version or a newer
+one.
+
+* `overrides` in `package.json` forces that single copy when this repository is the root project. The override repeats
+  the version range from `dependencies` instead of referencing it with `$@opentelemetry/api`, because npm 9 fails to
+  install the published package with the reference form. `src/util/dependencies_test.ts` checks that both ranges match.
+* npm ignores `overrides` when the distribution is installed as a dependency, which is how the Dash0 operator installs
+  it. `bundleDependencies` therefore ships the dependency tree resolved here inside the published package.
+* `test/integration/packaged_test.ts` packs the distribution and installs it as a dependency to verify the published
+  tree. Changes to dependencies should keep that test green, not only the tests that run against `src`. Packing runs
+  the `prepack` script, so the integration tests rebuild `dist` and delete any `dash0-opentelemetry-*.tgz` in the
+  repository root.
