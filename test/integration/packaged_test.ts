@@ -8,7 +8,7 @@ import path from 'node:path';
 import semver from 'semver';
 
 import { expectManualSpanInRequestTrace } from '../util/expectManualSpanInRequestTrace';
-import { runNpmCommand } from '../util/runCommand';
+import { installAppDependencies, runNpmCommand } from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
@@ -18,7 +18,10 @@ const appPort = 1302;
 
 // Installs the packed distribution as a dependency of an otherwise empty project, the way the Dash0 operator installs
 // it. npm ignores the overrides in this repository's package.json there, so this checks the tree that users get.
-describe('packaged distribution', () => {
+describe('packaged distribution', function () {
+  // Packing builds the distribution, and npm takes minutes to install and remove the bundled tree on CI runners.
+  this.timeout(600000);
+
   let tmpDir: string;
   let installedDistroPath: string;
   let appUnderTest: ChildProcessWrapper;
@@ -28,19 +31,19 @@ describe('packaged distribution', () => {
       this.skip();
       return;
     }
-    // Packing builds the distribution, and npm takes minutes to install the bundled tree on CI runners.
-    this.timeout(600000);
-
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dash0-packaged-distribution-'));
     await runNpmCommand(`pack --quiet --pack-destination ${tmpDir}`, '.');
     const tarball = (await fs.readdir(tmpDir)).find(file => file.endsWith('.tgz'));
+    if (!tarball) {
+      throw new Error(`npm pack did not write a tarball to ${tmpDir}.`);
+    }
     const consumerDir = path.join(tmpDir, 'consumer');
     await fs.mkdir(consumerDir);
     await fs.writeFile(path.join(consumerDir, 'package.json'), JSON.stringify({ private: true }));
-    await runNpmCommand(`install --quiet --no-fund --no-audit ${path.join(tmpDir, tarball!)}`, consumerDir);
+    await runNpmCommand(`install --quiet --no-fund --no-audit ${path.join(tmpDir, tarball)}`, consumerDir);
     installedDistroPath = path.join(consumerDir, 'node_modules', '@dash0', 'opentelemetry');
 
-    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/manual-instrumentation');
+    await installAppDependencies('test/apps/manual-instrumentation');
     const appConfiguration = defaultAppConfiguration(appPort);
     appConfiguration.path = 'test/apps/manual-instrumentation';
     appConfiguration.distroPath = installedDistroPath;

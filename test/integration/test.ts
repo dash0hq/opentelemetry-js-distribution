@@ -18,7 +18,7 @@ import { expectManualSpanInRequestTrace } from '../util/expectManualSpanInReques
 import { expectMatchingLogRecord } from '../util/expectMatchingLogRecord';
 import { expectMatchingMetric } from '../util/expectMatchingMetric';
 import { expectMatchingSpan } from '../util/expectMatchingSpan';
-import { runNpmCommand } from '../util/runCommand';
+import { installAppDependencies } from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
@@ -36,9 +36,9 @@ describe('attach', () => {
       return;
     }
 
-    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/already-instrumented');
-    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/express-typescript');
-    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/manual-instrumentation');
+    await installAppDependencies('test/apps/already-instrumented');
+    await installAppDependencies('test/apps/express-typescript');
+    await installAppDependencies('test/apps/manual-instrumentation');
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
 
