@@ -16,17 +16,14 @@ export async function runNpmCommand(command: string, workingDirectory: string) {
 }
 
 export async function runCommand(command: string, workingDirectory: string) {
-  const originalWorkingDirectory = process.cwd();
-  process.chdir(workingDirectory);
-  try {
-    console.log(`Running "${command}" in directory ${process.cwd()}.`);
-    const execAsync = promisify(childProcess.exec).bind(childProcess);
-    const { stdout, stderr } = await execAsync(command);
-    echoOutputWithIndentation(command, 'stdout', stdout);
-    echoOutputWithIndentation(command, 'stderr', stderr);
-  } finally {
-    process.chdir(originalWorkingDirectory);
-  }
+  // Passing cwd to exec instead of calling process.chdir keeps a command that outlives a timed-out hook from changing
+  // the working directory of the following tests.
+  const cwd = path.resolve(workingDirectory);
+  console.log(`Running "${command}" in directory ${cwd}.`);
+  const execAsync = promisify(childProcess.exec).bind(childProcess);
+  const { stdout, stderr } = await execAsync(command, { cwd });
+  echoOutputWithIndentation(command, 'stdout', stdout);
+  echoOutputWithIndentation(command, 'stderr', stderr);
 }
 
 function echoOutputWithIndentation(command: string, label: string, output: string) {

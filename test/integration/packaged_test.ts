@@ -28,7 +28,8 @@ describe('packaged distribution', () => {
       this.skip();
       return;
     }
-    this.timeout(300000);
+    // Packing builds the distribution, and npm takes minutes to install the bundled tree on CI runners.
+    this.timeout(600000);
 
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dash0-packaged-distribution-'));
     await runNpmCommand(`pack --quiet --pack-destination ${tmpDir}`, '.');
