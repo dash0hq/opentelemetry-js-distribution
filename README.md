@@ -48,12 +48,11 @@ By default, the instrumentation plug-in `@opentelemetry/instrumentation-fs` is d
 If `DASH0_FLUSH_ON_SIGTERM_SIGINT=true` is set, the Dash0 Node.js distribution will install a handler for SIGTERM and
 SIGINT that will shutdown the OpenTelemetry SDK gracefully when one of these signals is received.
 The SDK shutdown is timeboxed to 500 milliseconds.
-The signal handler will call `process.exit(0)` after the SDK's shutdown has completed, or after the 500 millisecond
-timeout, whichever happens sooner.
+After the SDK's shutdown has completed, or after the 500 millisecond timeout, whichever happens sooner, the signal
+handler re-raises the signal, so the process terminates with the signal's default behavior.
 This option can be helpful if you care about telemetry that is being produced shortly before the process terminates.
 This option must not be used if the application under monitoring has its own handler for SIGTERM or SIGINT, because
-Dash0's handler (and in particular the necessary `process.exit(0)` call) might interfere with the application's own
-signal handler.
+Dash0's handler (and in particular re-raising the signal) might interfere with the application's own signal handler.
 
 ### <a id="DASH0_FLUSH_ON_EMPTY_EVENT_LOOP">DASH0_FLUSH_ON_EMPTY_EVENT_LOOP</a>
 
@@ -65,8 +64,8 @@ This hook can be helpful if you care about telemetry that is being produced shor
 exits.
 Disabling it can be useful if you care about the process terminating as quickly as possible when the event loop is
 empty.
-In contrast to the handlers for SIGTERM/SIGINT (see above), this hook will not call `process.exit` (since the Node.js
-runtime will exit on its own anyway).
+In contrast to the handlers for SIGTERM/SIGINT (see above), this hook does not terminate the process itself.
+The Node.js runtime exits on its own afterwards, with the exit code set in `process.exitCode`, if any.
 
 ### <a id="DASH0_OTEL_COLLECTOR_BASE_URL">DASH0_OTEL_COLLECTOR_BASE_URL</a>
 

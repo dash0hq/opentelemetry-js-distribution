@@ -34,6 +34,8 @@ export default class ChildProcessWrapper {
   private responseEmitter: ResponseEmitter;
   private capturedStdout: string;
   private capturedStderr: string;
+  private exitCode: number | null;
+  private exitSignal: NodeJS.Signals | null;
 
   constructor(options: ChildProcessWrapperOptions) {
     this.options = options;
@@ -46,14 +48,18 @@ export default class ChildProcessWrapper {
     this.responseEmitter = new ResponseEmitter();
     this.capturedStdout = '';
     this.capturedStderr = '';
+    this.exitCode = null;
+    this.exitSignal = null;
   }
 
   async start() {
     const { modulePath, forkOptions } = await this.createForkOptions();
     this.childProcess = fork(modulePath, this.options.args ?? [], forkOptions);
     this.listenToIpcMessages();
-    this.childProcess.on('exit', () => {
+    this.childProcess.on('exit', (code, signal) => {
       this.terminated = true;
+      this.exitCode = code;
+      this.exitSignal = signal;
     });
     this.echoAndCollectOutputStreams();
     await this.waitUntilReady();
@@ -195,6 +201,11 @@ export default class ChildProcessWrapper {
       return;
     }
     this.responseEmitter.emit(message.id, message);
+  }
+
+  /** Returns the exit code and signal of the terminated child process. */
+  getExitStatus() {
+    return { code: this.exitCode, signal: this.exitSignal };
   }
 
   getCapturedStdout() {

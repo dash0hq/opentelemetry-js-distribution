@@ -189,38 +189,42 @@ function createBootstrapSpanIfRequested() {
 function installProcessExitHandlers() {
   if (hasOptedIn('DASH0_FLUSH_ON_SIGTERM_SIGINT')) {
     printDebugStdout('Installing process exit handler for SIGTERM/SIGINT.');
-    ['SIGTERM', 'SIGINT'].forEach(signal => {
-      process.once(signal, onProcessExit.bind(null, signal));
+    (['SIGTERM', 'SIGINT'] as const).forEach(signal => {
+      process.once(signal, () => onProcessExit(signal));
     });
   }
 
   if (!hasOptedOut('DASH0_FLUSH_ON_EMPTY_EVENT_LOOP')) {
     printDebugStdout('Installing process exit handler.');
-    process.once('beforeExit', onProcessExit.bind(null));
+    // Node.js passes process.exitCode to beforeExit listeners, which must not be mistaken for a signal.
+    process.once('beforeExit', () => onProcessExit());
   }
 }
 
-async function onProcessExit(signal?: string) {
+async function onProcessExit(signal?: NodeJS.Signals) {
   if (signal) {
     printDebugStdout('Running process exit handler for signal:', signal);
   } else {
     printDebugStdout('Running process exit handler.');
   }
-  await executePromiseWithTimeout(gracefulSdkShutdown(signal), 500, signal);
+  try {
+    await executePromiseWithTimeout(gracefulSdkShutdown(), 500);
+  } finally {
+    if (signal) {
+      // The once listener is gone, so re-raising the signal terminates the process with the default action.
+      printDebugStdout('Re-raising signal', signal);
+      process.kill(process.pid, signal);
+    }
+  }
 }
 
-async function gracefulSdkShutdown(signal?: string) {
-  try {
-    if (sdkShutdownHasBeenCalled) {
-      printDebugStdout('Ignoring repeated request for graceful SDK shutdown.');
-      if (signal) {
-        // re-raise the signal to exit the process
-        printDebugStdout('Re-raising signal', signal);
-        process.kill(process.pid, signal);
-      }
-      return;
-    }
+async function gracefulSdkShutdown() {
+  if (sdkShutdownHasBeenCalled) {
+    printDebugStdout('Ignoring repeated request for graceful SDK shutdown.');
+    return;
+  }
 
+  try {
     printDebugStdout('Triggering graceful SDK shutdown.');
     sdkShutdownHasBeenCalled = true;
     await sdk.shutdown();
@@ -228,16 +232,10 @@ async function gracefulSdkShutdown(signal?: string) {
     printDebugStdout('OpenTelemetry SDK has been shut down successfully.');
   } catch (err) {
     console.error(logPrefix, 'Error shutting down the OpenTelemetry SDK:', err);
-  } finally {
-    if (signal) {
-      // re-raise the signal to exit the process
-      printDebugStdout('Re-raising signal', signal);
-      process.kill(process.pid, signal);
-    }
   }
 }
 
-function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number, signal?: string) {
+function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number) {
   let setTimeoutId: NodeJS.Timeout;
   const timeoutPromise = new Promise(resolve => {
     setTimeoutId = setTimeout(() => {
@@ -252,11 +250,6 @@ function executePromiseWithTimeout(promise: Promise<any>, timeoutMillis: number,
   ]).finally(() => {
     if (setTimeoutId) {
       clearTimeout(setTimeoutId);
-    }
-    if (signal) {
-      // re-raise the signal to exit the process
-      printDebugStdout('Re-raising signal', signal);
-      process.kill(process.pid, signal);
     }
   });
 }
