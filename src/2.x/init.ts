@@ -99,10 +99,11 @@ function startSdkFromConfigFile() {
   // than those the file references via ${...} substitution are ignored, as the specification requires. This also means
   // that DASH0_DEBUG_PRINT_SPANS does not apply, and that the Dash0 resource detectors and the telemetry.distro.*
   // attributes only apply if the file names them as detectors (see declarativeResourceDetectors.ts).
+  // Debug only: the OS packages derive DASH0_OTEL_COLLECTOR_BASE_URL from OTEL_EXPORTER_OTLP_ENDPOINT, so a warning
+  // would name a variable the user never set.
   if (baseUrl) {
-    console.warn(
-      logPrefix,
-      `Both OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL are set. The configuration file ${configFile} takes precedence, DASH0_OTEL_COLLECTOR_BASE_URL will be ignored.`,
+    printDebugStdout(
+      'Both OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL are set. DASH0_OTEL_COLLECTOR_BASE_URL will be ignored.',
     );
   }
   printDebugStdout(`Starting OpenTelemetry SDK from configuration file ${configFile}.`);
