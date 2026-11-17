@@ -244,6 +244,7 @@ describe('attach', () => {
     it('should flush telemetry before process exit due to SIGTERM', async () => {
       await appUnderTest.start();
       await appUnderTest.stop();
+      expect(appUnderTest.getExitStatus()).to.deep.equal({ code: null, signal: 'SIGTERM' });
       await waitUntil(async () => {
         const traces = await collector().fetchTraces();
         expectMatchingSpan(
@@ -262,6 +263,7 @@ describe('attach', () => {
     it('should flush telemetry before process exit due to SIGINT', async () => {
       await appUnderTest.start();
       await appUnderTest.stop('SIGINT');
+      expect(appUnderTest.getExitStatus()).to.deep.equal({ code: null, signal: 'SIGINT' });
       await waitUntil(async () => {
         const traces = await collector().fetchTraces();
         expectMatchingSpan(
@@ -310,6 +312,27 @@ describe('attach', () => {
           ],
           [span => expect(span.name).to.equal('Dash0 Test Bootstrap Span')],
         );
+      });
+    });
+  });
+
+  describe('exit code on normal process exit (empty event loop)', () => {
+    [0, 1, 42].forEach(exitCode => {
+      it(`should exit with process.exitCode ${exitCode}`, async () => {
+        const appUnderTest = new ChildProcessWrapper({
+          path: 'test/apps/exit-code',
+          label: 'app',
+          useTsNode: true,
+          useDistro: true,
+          env: {
+            ...process.env,
+            DASH0_OTEL_COLLECTOR_BASE_URL: 'http://localhost:4318',
+            APP_EXIT_CODE: String(exitCode),
+          },
+        });
+        await appUnderTest.start();
+        await appUnderTest.waitUntilTerminated();
+        expect(appUnderTest.getExitStatus()).to.deep.equal({ code: exitCode, signal: null });
       });
     });
   });

@@ -1,0 +1,11 @@
+{
+  "name": "dash0-app-under-test-exit-code",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "app.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "Apache-2.0"
+}
