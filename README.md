@@ -95,6 +95,13 @@ Spans and metrics that your application creates with `@opentelemetry/api` are re
 application's copy of `@opentelemetry/api` has the same or an older minor version than the copy bundled with the
 distribution, currently 1.10.
 A newer minor version of `@opentelemetry/api` in your application does not accept the distribution's registration and
-records nothing, so stay on 1.10.x until a distribution release supports the newer version.
+records nothing, so stay on 1.10.x or older until a distribution release supports the newer version.
 The distribution bundles its dependencies, so `overrides` or `resolutions` in your application's `package.json` do not
 change the version it uses.
+
+The OpenTelemetry JS SDK versions in the distribution predate `@opentelemetry/api` 1.10, so the features that 1.10 added
+do not work yet:
+
+* Log records emitted through `logs` from `@opentelemetry/api` are not recorded.
+* `context.attach()` and `context.detach()` do not change the active context.
+* Attribute values that are not primitives or arrays of primitives are dropped.

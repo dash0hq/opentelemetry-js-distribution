@@ -33,6 +33,9 @@ one.
   install the published package with the reference form. `src/util/dependencies_test.ts` checks that both ranges match.
 * npm ignores `overrides` when the distribution is installed as a dependency, which is how the Dash0 operator installs
   it. `bundleDependencies` therefore ships the dependency tree resolved here inside the published package.
+  The lockfile resolves each package once for production and development dependencies together, so a devDependency
+  range can change the version the distribution ships. This currently applies to `@grpc/grpc-js`, `@types/node`,
+  `node-fetch` and `semver`.
 * `test/integration/packaged_test.ts` packs the distribution and installs it as a dependency to verify the published
   tree. Changes to dependencies should keep that test green, not only the tests that run against `src`. Packing runs
   the `prepack` script, so the integration tests rebuild `dist` and delete any `dash0-opentelemetry-*.tgz` in the

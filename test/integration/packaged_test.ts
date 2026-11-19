@@ -67,6 +67,12 @@ describe('packaged distribution', function () {
   it('should contain a single copy of @opentelemetry/api', async () => {
     const versions = await findPackageVersions(path.join(tmpDir, 'consumer'), '@opentelemetry/api');
     expect(versions).to.have.lengthOf(1, `found @opentelemetry/api versions ${versions.join(', ')}`);
+    const packageJson = JSON.parse(await fs.readFile('package.json', 'utf8'));
+    const expectedRange = packageJson.dependencies['@opentelemetry/api'];
+    expect(
+      semver.satisfies(versions[0], expectedRange),
+      `bundled @opentelemetry/api is ${versions[0]}, expected ${expectedRange}`,
+    ).to.be.true;
   });
 
   it('should capture manual spans in the trace of the auto-instrumented request', async () => {
