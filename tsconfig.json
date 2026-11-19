@@ -18,5 +18,5 @@
     "target": "ES2022"
   },
   "include": ["./src/**/*", "./src/**/*.json", "./package.json"],
-  "exclude": ["**/*.test.js", "**/*.test.ts"]
+  "exclude": ["**/*.test.js", "**/*.test.ts", "**/*_test.ts"]
 }

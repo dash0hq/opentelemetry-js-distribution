@@ -3,6 +3,8 @@
 
 import semver from 'semver';
 
+import { ignoresRegisteredApi, registeredApiVersion, resolveApiVersion } from './util/apiVersion';
+
 const lowerBound = '14.0.0';
 const versionMapping = [
   // OpenTelemetry JS SDK 1.x, supports Node.js 14.x - 18.18.2, and 20.0.0-20.5.1.
@@ -50,6 +52,7 @@ function init() {
       if (semver.satisfies(nodeJsRuntimeVersion, semverRange)) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         require(initFile);
+        warnIfApplicationIgnoresRegisteredApi();
         return;
       }
     }
@@ -66,6 +69,26 @@ if (process.env.DASH0_DISABLE != null && process.env.DASH0_DISABLE.toLowerCase()
   logProhibitiveError(`DASH0_OTEL_COLLECTOR_BASE_URL is not set.`);
 } else {
   init();
+}
+
+// @opentelemetry/api ignores an incompatible global registration without logging anything, so the application would
+// look instrumented while its own spans and metrics are dropped.
+function warnIfApplicationIgnoresRegisteredApi() {
+  try {
+    const registeredVersion = registeredApiVersion();
+    if (!registeredVersion) {
+      return;
+    }
+    const applicationLocations = process.argv[1] ? [process.argv[1], process.cwd()] : [process.cwd()];
+    const applicationVersion = resolveApiVersion(applicationLocations);
+    if (applicationVersion && ignoresRegisteredApi(applicationVersion, registeredVersion)) {
+      logWarning(
+        `The application uses @opentelemetry/api ${applicationVersion}, which ignores the OpenTelemetry SDK that the distribution registered with @opentelemetry/api ${registeredVersion}. Spans and metrics that the application creates with @opentelemetry/api will not be recorded, and they will not be part of the traces of auto-instrumented requests.`,
+      );
+    }
+  } catch {
+    // The check is best effort and must not affect the SDK that has already started.
+  }
 }
 
 function logProhibitiveError(message: string) {

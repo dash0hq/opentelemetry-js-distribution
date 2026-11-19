@@ -14,10 +14,11 @@ import {
   expectResourceAttribute,
   expectSpanAttribute,
 } from '../util/expectAttribute';
+import { expectManualSpanInRequestTrace } from '../util/expectManualSpanInRequestTrace';
 import { expectMatchingLogRecord } from '../util/expectMatchingLogRecord';
 import { expectMatchingMetric } from '../util/expectMatchingMetric';
 import { expectMatchingSpan } from '../util/expectMatchingSpan';
-import { runNpmCommand } from '../util/runCommand';
+import { installAppDependencies } from '../util/runCommand';
 import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
@@ -35,8 +36,9 @@ describe('attach', () => {
       return;
     }
 
-    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/already-instrumented');
-    await runNpmCommand('ci --quiet --no-fund --no-audit', 'test/apps/express-typescript');
+    await installAppDependencies('test/apps/already-instrumented');
+    await installAppDependencies('test/apps/express-typescript');
+    await installAppDependencies('test/apps/manual-instrumentation');
     expectedDistroVersion = JSON.parse(String(await readFile('package.json'))).version;
   });
 
@@ -125,6 +127,29 @@ describe('attach', () => {
             logRecord => expectLogRecordAttribute(logRecord, 'log.type', 'LogRecord'),
           ],
         );
+      });
+    });
+  });
+
+  describe('manual instrumentation via an API package installed by the application', () => {
+    let appUnderTest: ChildProcessWrapper;
+
+    before(async () => {
+      const appConfiguration = defaultAppConfiguration(appPort);
+      // The app depends on its own copy of @opentelemetry/api. Its spans only reach the SDK if that copy accepts the
+      // version the distribution registered the global API with.
+      appConfiguration.path = 'test/apps/manual-instrumentation';
+      appUnderTest = new ChildProcessWrapper(appConfiguration);
+      await appUnderTest.start();
+    });
+
+    after(async () => {
+      await appUnderTest.stop();
+    });
+
+    it('should capture manual spans in the trace of the auto-instrumented request', async () => {
+      await waitUntil(async () => {
+        expectManualSpanInRequestTrace(await sendHttpRequestAndFetchTraceData());
       });
     });
   });
