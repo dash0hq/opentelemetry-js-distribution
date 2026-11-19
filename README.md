@@ -96,6 +96,7 @@ application's copy of `@opentelemetry/api` has the same or an older minor versio
 distribution, currently 1.10.
 A newer minor version of `@opentelemetry/api` in your application does not accept the distribution's registration and
 records nothing, so stay on 1.10.x or older until a distribution release supports the newer version.
+The distribution logs a warning to stderr when it detects this at startup.
 The distribution bundles its dependencies, so `overrides` or `resolutions` in your application's `package.json` do not
 change the version it uses.
 
