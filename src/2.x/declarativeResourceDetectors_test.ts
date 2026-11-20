@@ -130,5 +130,12 @@ describe('declarative resource detectors', () => {
       ).attributes;
       expect(attributes).to.have.property('telemetry.distro.name', 'dash0-nodejs');
     });
+
+    it('does not patch a createResourceFromConfig that takes a component registry first', () => {
+      const withRegistry = (_registry: unknown, resourceConfig?: unknown) => original(resourceConfig);
+      createFromConfigModule.createResourceFromConfig = withRegistry;
+      expect(installDeclarativeResourceDetectors(detectors)).to.match(/takes 2 parameters/);
+      expect(createFromConfigModule.createResourceFromConfig).to.equal(withRegistry);
+    });
   });
 });

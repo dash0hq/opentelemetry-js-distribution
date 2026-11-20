@@ -25,7 +25,7 @@ import { detectResources, Resource, ResourceDetector, resourceFromAttributes } f
 
 export const serviceNameDetectorName = 'dash0_service_name';
 
-export type CreateResourceFromConfig = (resourceConfig?: any) => Resource;
+export type CreateResourceFromConfig = (resourceConfig?: any, ...rest: unknown[]) => Resource;
 
 /**
  * Wraps sdk-node's createResourceFromConfig so that the given detectors can be named in a configuration file.
@@ -38,7 +38,7 @@ export function wrapCreateResourceFromConfig(
   original: CreateResourceFromConfig,
   detectors: Record<string, ResourceDetector>,
 ): CreateResourceFromConfig {
-  return resourceConfig => {
+  return (resourceConfig, ...rest) => {
     const detection = resourceConfig?.['detection/development'];
     const requested: string[] = [];
     const remaining: unknown[] = [];
@@ -53,13 +53,16 @@ export function wrapCreateResourceFromConfig(
       }
     }
     if (requested.length === 0) {
-      return original(resourceConfig);
+      return original(resourceConfig, ...rest);
     }
 
-    const upstreamResource = original({
-      ...resourceConfig,
-      'detection/development': { ...detection, detectors: remaining },
-    });
+    const upstreamResource = original(
+      {
+        ...resourceConfig,
+        'detection/development': { ...detection, detectors: remaining },
+      },
+      ...rest,
+    );
 
     const lowPrecedence = requested.filter(name => name !== serviceNameDetectorName).map(name => detectors[name]);
     let resource =
@@ -106,7 +109,8 @@ function hasDefaultServiceName(resource: Resource): boolean {
  * (sdk-node <= 0.222) has it at build/src/create-from-config.js, the tsdown build that replaces it at
  * dist/create-from-config.cjs, and the latter's package.json exports map rejects deep imports, but not absolute paths.
  *
- * Returns an error message if the module or the function could not be found, in which case nothing is patched.
+ * Returns an error message if the module or the function could not be found, or if the function does not take the
+ * resource configuration as its only parameter, in which case nothing is patched.
  */
 export function installDeclarativeResourceDetectors(detectors: Record<string, ResourceDetector>): string | undefined {
   let entryPoint: string;
@@ -129,6 +133,11 @@ export function installDeclarativeResourceDetectors(detectors: Record<string, Re
     }
     if (typeof module?.createResourceFromConfig !== 'function') {
       return `${candidate} does not export a createResourceFromConfig function`;
+    }
+    // Newer sdk-node versions take a component registry first. Wrapping one of those would hand the registry to the
+    // wrapper as the resource configuration and silently drop the file's resource section.
+    if (module.createResourceFromConfig.length !== 1) {
+      return `${candidate} exports a createResourceFromConfig that takes ${module.createResourceFromConfig.length} parameters, expected the resource configuration only`;
     }
     module.createResourceFromConfig = wrapCreateResourceFromConfig(module.createResourceFromConfig, detectors);
     return undefined;
