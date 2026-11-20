@@ -23,6 +23,7 @@ import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
+import { createPropagator } from './propagator';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
 import { kafkaJsInstrumentation } from '../util/kafkajs';
 
@@ -81,6 +82,7 @@ const configuration: Partial<NodeSDKConfiguration> = {
   ],
   resource: defaultResource().merge(distroResource()),
   resourceDetectors: resourceDetectors(),
+  textMapPropagator: createPropagator(),
 };
 
 const sdk = new NodeSDK(configuration);

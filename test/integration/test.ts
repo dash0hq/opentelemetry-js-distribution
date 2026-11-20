@@ -6,6 +6,7 @@ import { expect } from 'chai';
 import { readFile } from 'node:fs/promises';
 import semver from 'semver';
 
+import { ExportTraceServiceRequest } from '../collector/types/opentelemetry/proto/collector/trace/v1/trace_service';
 import { SeverityNumber } from '../collector/types/opentelemetry/proto/logs/v1/logs';
 import delay from '../util/delay';
 import {
@@ -187,6 +188,81 @@ describe('attach', () => {
         );
       });
     });
+  });
+
+  describe('trace context propagation', () => {
+    before(function () {
+      // The X-Ray propagator and the tracecontext,baggage,xray default only ship with the 2.x line.
+      if (!semver.satisfies(process.version, '>=18.19.0 <20.0.0 || >=20.6.0')) {
+        this.skip();
+      }
+    });
+
+    const traceparentTraceId = '0af7651916cd43dd8448eb211c80319c';
+    const traceparentSpanId = 'b7ad6b7169203331';
+    const xrayTraceId = '5759e988bd862e3fe1be46a994272793';
+    const xraySpanId = '53995c3f42cd8ad8';
+    const headers = {
+      traceparent: `00-${traceparentTraceId}-${traceparentSpanId}-01`,
+      'x-amzn-trace-id':
+        'Self=1-67891234-12456789abcdef012345678;Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8;Sampled=1',
+    };
+
+    describe('default propagators', () => {
+      let appUnderTest: ChildProcessWrapper;
+
+      before(async () => {
+        const appConfiguration = defaultAppConfiguration(appPort);
+        delete appConfiguration.env!.OTEL_PROPAGATORS;
+        appUnderTest = new ChildProcessWrapper(appConfiguration);
+        await appUnderTest.start();
+      });
+
+      after(async () => {
+        await appUnderTest.stop();
+      });
+
+      it('should continue the trace from X-Amzn-Trace-Id when traceparent is also present', async () => {
+        await waitUntil(async () => {
+          await sendHttpRequestAndVerifyResponse(headers);
+          expectServerSpanWithParent(await collector().fetchTraces(), xrayTraceId, xraySpanId);
+        });
+      });
+    });
+
+    describe('OTEL_PROPAGATORS=tracecontext', () => {
+      let appUnderTest: ChildProcessWrapper;
+
+      before(async () => {
+        const appConfiguration = defaultAppConfiguration(appPort);
+        appConfiguration.env!.OTEL_PROPAGATORS = 'tracecontext';
+        appUnderTest = new ChildProcessWrapper(appConfiguration);
+        await appUnderTest.start();
+      });
+
+      after(async () => {
+        await appUnderTest.stop();
+      });
+
+      it('should continue the trace from traceparent and ignore X-Amzn-Trace-Id', async () => {
+        await waitUntil(async () => {
+          await sendHttpRequestAndVerifyResponse(headers);
+          expectServerSpanWithParent(await collector().fetchTraces(), traceparentTraceId, traceparentSpanId);
+        });
+      });
+    });
+
+    function expectServerSpanWithParent(traces: ExportTraceServiceRequest[], traceId: string, parentSpanId: string) {
+      expectMatchingSpan(
+        traces,
+        [],
+        [
+          span => expect(span.kind).to.equal(SpanKind.SERVER, 'span kind should be server'),
+          span => expect(Buffer.from(span.trace_id).toString('hex')).to.equal(traceId),
+          span => expect(Buffer.from(span.parent_span_id).toString('hex')).to.equal(parentSpanId),
+        ],
+      );
+    }
   });
 
   describe('bootstrap span', () => {
@@ -486,8 +562,8 @@ describe('attach', () => {
     return collector().fetchLogRecords();
   }
 
-  async function sendHttpRequestAndVerifyResponse() {
-    const response = await fetch(`http://localhost:${appPort}/ohai`);
+  async function sendHttpRequestAndVerifyResponse(headers?: Record<string, string>) {
+    const response = await fetch(`http://localhost:${appPort}/ohai`, { headers });
     expect(response.status).to.equal(200);
     const responsePayload = await response.json();
     expect(responsePayload).to.deep.equal({ message: 'We make Observability easy for every developer.' });
