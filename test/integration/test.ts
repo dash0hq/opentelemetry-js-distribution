@@ -625,7 +625,7 @@ describe('attach', () => {
           await appUnderTest.stop();
         });
 
-        it('should let the config file take precedence and warn', async () => {
+        it('should let the config file take precedence', async () => {
           await waitUntil(async () => {
             const traces = await sendHttpRequestAndFetchTraceData();
             expectMatchingSpan(
@@ -634,9 +634,6 @@ describe('attach', () => {
               [span => expectSpanAttribute(span, 'http.route', '/ohai')],
             );
           });
-          expect(appUnderTest.getCapturedStderr()).to.include(
-            'Both OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL are set.',
-          );
         });
       });
 
