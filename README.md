@@ -72,6 +72,26 @@ The Node.js runtime exits on its own afterwards, with the exit code set in `proc
 The base URL of the OpenTelemetry collector that the distribution will send data to.
 It defaults to `http://dash0-operator-opentelemetry-collector.dash0-operator-system.svc.cluster.local:4318`.
 
+### <a id="OTEL_PROPAGATORS">OTEL_PROPAGATORS</a>
+
+On Node.js 18.19.0 to 18.x and on 20.6.0 or newer (the versions that use OpenTelemetry JS SDK 2.x), the distribution
+uses `tracecontext,baggage,xray` if `OTEL_PROPAGATORS` is not set: W3C Trace Context, W3C Baggage and AWS X-Ray
+(`X-Amzn-Trace-Id`).
+Outgoing requests carry both `traceparent` and `X-Amzn-Trace-Id`.
+If an incoming request carries a valid `X-Amzn-Trace-Id` (with `Root`, `Parent` and `Sampled`), it takes precedence over
+`traceparent`.
+An `X-Amzn-Trace-Id` without `Parent`, as added by an AWS load balancer to requests that arrive without one, is
+ignored, so the trace continues from `traceparent`.
+
+Setting `OTEL_PROPAGATORS` replaces the default.
+In addition to the values supported by the OpenTelemetry SDK (`tracecontext`, `baggage`, `b3`, `b3multi`, `jaeger`,
+`none`), the distribution supports `xray`, `xray-lambda` and `ottrace` via
+[@opentelemetry/auto-configuration-propagators](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/auto-configuration-propagators).
+For example, set `OTEL_PROPAGATORS=tracecontext,baggage` to turn off X-Ray propagation.
+
+On Node.js 16.x to 18.18.x and 20.0.0 to 20.5.x (the versions that use OpenTelemetry JS SDK 1.x), the distribution
+uses the SDK's default (`tracecontext,baggage`) and does not support `xray`.
+
 ### Enabling only specific instrumentations
 
 By default, all
