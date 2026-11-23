@@ -501,7 +501,7 @@ describe('attach', () => {
         fail('The collector received telemetry data although it should not have received anything.');
       }
       expect(appUnderTest.getCapturedStderr()).to.include(
-        '[Dash0 OpenTelemetry Distribution] Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set.',
+        '[Dash0 OpenTelemetry Distribution] Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set, and /etc/opentelemetry/nodejs/otel-config.yaml does not exist.',
       );
     });
   });

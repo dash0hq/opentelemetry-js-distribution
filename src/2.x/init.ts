@@ -25,6 +25,7 @@ import { installDeclarativeResourceDetectors, serviceNameDetectorName } from './
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { createPropagator } from './propagator';
+import { ConfigFile, resolveConfigFile, withConfigFileInEnv } from '../util/configFile';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
 import { kafkaJsInstrumentation } from '../util/kafkajs';
 
@@ -67,11 +68,13 @@ if (packageJson) {
 
 let sdkShutdownHasBeenCalled = false;
 
-// Note: There is a check in index.ts that at least one of OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL is set.
-const configFile = getStringFromEnv('OTEL_CONFIG_FILE');
+// Note: There is a check in index.ts that a configuration file or DASH0_OTEL_COLLECTOR_BASE_URL is present.
+const configFile = resolveConfigFile();
 const baseUrl = process.env.DASH0_OTEL_COLLECTOR_BASE_URL;
 
-const sdk: { shutdown: () => Promise<void> } = configFile ? startSdkFromConfigFile() : startSdkFromEnvironment();
+const sdk: { shutdown: () => Promise<void> } = configFile
+  ? startSdkFromConfigFile(configFile)
+  : startSdkFromEnvironment();
 
 createBootstrapSpanIfRequested();
 installProcessExitHandlers();
@@ -93,7 +96,7 @@ function startSdkFromEnvironment(): NodeSDK {
   return nodeSdk;
 }
 
-function startSdkFromConfigFile() {
+function startSdkFromConfigFile(configFile: ConfigFile) {
   // With a configuration file, the file is the complete SDK configuration: startNodeSDK builds all providers,
   // exporters and the resource from it, and only accepts the instrumentations from us. Environment variables other
   // than those the file references via ${...} substitution are ignored, as the specification requires. This also means
@@ -102,11 +105,9 @@ function startSdkFromConfigFile() {
   // Debug only: the OS packages derive DASH0_OTEL_COLLECTOR_BASE_URL from OTEL_EXPORTER_OTLP_ENDPOINT, so a warning
   // would name a variable the user never set.
   if (baseUrl) {
-    printDebugStdout(
-      'Both OTEL_CONFIG_FILE and DASH0_OTEL_COLLECTOR_BASE_URL are set. DASH0_OTEL_COLLECTOR_BASE_URL will be ignored.',
-    );
+    printDebugStdout(`Using configuration file ${configFile.path}, DASH0_OTEL_COLLECTOR_BASE_URL will be ignored.`);
   }
-  printDebugStdout(`Starting OpenTelemetry SDK from configuration file ${configFile}.`);
+  printDebugStdout(`Starting OpenTelemetry SDK from configuration file ${configFile.path}.`);
   const installError = installDeclarativeResourceDetectors({
     dash0_distribution: { detect: () => ({ attributes: distroResource().attributes }) },
     dash0_kubernetes: new PodUidDetector(),
@@ -120,7 +121,7 @@ function startSdkFromConfigFile() {
   }
   // startNodeSDK does not throw on an invalid or missing file, it logs the problem via diag and returns a no-op SDK.
   const configuredInstrumentations = instrumentations();
-  const sdk = startNodeSDK({ instrumentations: configuredInstrumentations });
+  const sdk = withConfigFileInEnv(configFile, () => startNodeSDK({ instrumentations: configuredInstrumentations }));
   // Workaround: startNodeSDK (sdk-node 0.222) registers the instrumentations before it creates and registers the global
   // MeterProvider. Unlike the trace and logs APIs, the metrics API has no proxy provider, so the instrumentations would
   // stay bound to the no-op MeterProvider and never record any metrics. Rebind them now that the global MeterProvider is

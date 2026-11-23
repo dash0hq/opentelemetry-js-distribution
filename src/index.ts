@@ -3,6 +3,7 @@
 
 import semver from 'semver';
 
+import { ConfigFile, defaultConfigFile, resolveConfigFile, unsupportedConfigFileOutcome } from './util/configFile';
 import { initFileForNodeJsVersion, sdk1xInitFile } from './versionMapping';
 
 const lowerBound = '14.0.0';
@@ -13,7 +14,7 @@ const untestedVersionRange = '>=26.0.0';
 
 const prefix = 'Dash0 OpenTelemetry Distribution';
 
-function init() {
+function init(configFile: ConfigFile | undefined) {
   try {
     const otelSdkAlreadyLoaded = Object.keys(require.cache).some(cacheKey =>
       cacheKey.includes('@opentelemetry/sdk-node/build/src/sdk.js'),
@@ -42,17 +43,20 @@ function init() {
 
     const initFile = initFileForNodeJsVersion(nodeJsRuntimeVersion);
     if (initFile) {
-      if (initFile === sdk1xInitFile && hasConfigFile()) {
+      if (initFile === sdk1xInitFile && configFile) {
         // Declarative configuration requires OpenTelemetry JS SDK 2.x
-        if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null) {
-          logProhibitiveError(
-            `OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version (${nodeJsRuntimeVersion}), and DASH0_OTEL_COLLECTOR_BASE_URL is not set.`,
-          );
+        const unsupported = unsupportedConfigFileOutcome(
+          configFile,
+          process.env.DASH0_OTEL_COLLECTOR_BASE_URL != null,
+          nodeJsRuntimeVersion,
+        );
+        if (unsupported?.prohibitive) {
+          logProhibitiveError(unsupported.message);
           return;
         }
-        logWarning(
-          `OTEL_CONFIG_FILE is set, but configuration files are not supported on this Node.js runtime version (${nodeJsRuntimeVersion}). The configuration file will be ignored, the distribution will be configured via environment variables instead.`,
-        );
+        if (unsupported) {
+          logWarning(unsupported.message);
+        }
       }
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require(initFile);
@@ -67,15 +71,15 @@ function init() {
 
 if (process.env.DASH0_DISABLE != null && process.env.DASH0_DISABLE.toLowerCase() === 'true') {
   logProhibitiveError(`The distribution has been disabled by setting DASH0_DISABLE=${process.env.DASH0_DISABLE}.`);
-} else if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null && !hasConfigFile()) {
-  logProhibitiveError(`Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set.`);
 } else {
-  init();
-}
-
-function hasConfigFile(): boolean {
-  const configFile = process.env.OTEL_CONFIG_FILE;
-  return configFile != null && configFile.trim() !== '';
+  const configFile = resolveConfigFile();
+  if (process.env.DASH0_OTEL_COLLECTOR_BASE_URL == null && !configFile) {
+    logProhibitiveError(
+      `Neither DASH0_OTEL_COLLECTOR_BASE_URL nor OTEL_CONFIG_FILE is set, and ${defaultConfigFile} does not exist.`,
+    );
+  } else {
+    init(configFile);
+  }
 }
 
 function logProhibitiveError(message: string) {
