@@ -1,0 +1,36 @@
+# Like otel-config.yaml, but naming the Dash0 resource detectors and leaving service.name to the dash0_service_name
+# fallback.
+#
+# Declarative configuration used by the integration tests for OTEL_CONFIG_FILE. The collector base URL is provided via
+# environment variable substitution, to also verify that substitution works. Export intervals are short to speed up
+# tests; under a configuration file, the OTEL_BSP_*/OTEL_BLRP_*/OTEL_METRIC_* environment variables do not apply.
+file_format: '1.0'
+resource:
+  detection/development:
+    detectors:
+      - process: {}
+      - dash0_distribution: {}
+      - dash0_kubernetes: {}
+      - dash0_service_name: {}
+tracer_provider:
+  processors:
+    - batch:
+        schedule_delay: 20
+        exporter:
+          otlp_http:
+            endpoint: ${TEST_COLLECTOR_BASE_URL}/v1/traces
+meter_provider:
+  readers:
+    - periodic:
+        interval: 100
+        timeout: 90
+        exporter:
+          otlp_http:
+            endpoint: ${TEST_COLLECTOR_BASE_URL}/v1/metrics
+logger_provider:
+  processors:
+    - batch:
+        schedule_delay: 20
+        exporter:
+          otlp_http:
+            endpoint: ${TEST_COLLECTOR_BASE_URL}/v1/logs
