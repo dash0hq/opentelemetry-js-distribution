@@ -52,6 +52,12 @@ jobs:
         run: |
           npm run lint
 
+      # Lets the integration tests install /etc/opentelemetry/nodejs/otel-config.yaml.
+      - name: make the default configuration file directory writable
+        run: |
+          sudo mkdir -p /etc/opentelemetry/nodejs
+          sudo chown "$(id -u):$(id -g)" /etc/opentelemetry/nodejs
+
       - name: test
         run: |
           npm test

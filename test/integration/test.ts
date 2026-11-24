@@ -3,7 +3,8 @@
 
 import { SpanKind } from '@opentelemetry/api';
 import { expect } from 'chai';
-import { readFile } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { access, copyFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import semver from 'semver';
 
@@ -24,6 +25,7 @@ import waitUntil from '../util/waitUntil';
 import ChildProcessWrapper, { ChildProcessWrapperOptions, defaultAppConfiguration } from './ChildProcessWrapper';
 import { collector } from './rootHooks';
 import { skipWhenNodeJsVersionIsSmallerThan } from './constants';
+import { defaultConfigFile } from '../../src/util/configFile';
 import { initFileForNodeJsVersion, sdk1xInitFile } from '../../src/versionMapping';
 
 const { fail } = expect;
@@ -634,6 +636,47 @@ describe('attach', () => {
               [span => expectSpanAttribute(span, 'http.route', '/ohai')],
             );
           });
+        });
+      });
+
+      describe('default config file', () => {
+        let appUnderTest: ChildProcessWrapper | undefined;
+
+        before(async function () {
+          // CI makes the directory writable for the runner user; elsewhere, this test is skipped.
+          try {
+            await access(path.dirname(defaultConfigFile), fsConstants.W_OK);
+          } catch {
+            this.skip();
+          }
+          await copyFile(path.join(__dirname, 'otel-config-default-path.yaml'), defaultConfigFile);
+          const appConfiguration = defaultAppConfiguration(appPort);
+          delete appConfiguration.env!.OTEL_CONFIG_FILE;
+          delete appConfiguration.env!.OTEL_EXPORTER_OTLP_ENDPOINT;
+          appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL = 'http://localhost:4318/';
+          appUnderTest = new ChildProcessWrapper(appConfiguration);
+          await appUnderTest.start();
+        });
+
+        after(async () => {
+          await appUnderTest?.stop();
+          await rm(defaultConfigFile, { force: true });
+        });
+
+        it('should export to DASH0_OTEL_COLLECTOR_BASE_URL as configured in the default file', async () => {
+          await waitUntil(async () => {
+            const traces = await sendHttpRequestAndFetchTraceData();
+            expectMatchingSpan(
+              traces,
+              [resource => expectResourceAttribute(resource, 'service.name', 'default-config-file-test')],
+              [span => expectSpanAttribute(span, 'http.route', '/ohai')],
+            );
+          });
+        });
+
+        it('should not pass OTEL_CONFIG_FILE on to child processes', async () => {
+          const response = await fetch(`http://localhost:${appPort}/child-env`);
+          expect(await response.json()).to.deep.equal({ OTEL_CONFIG_FILE: '' });
         });
       });
 
