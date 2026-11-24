@@ -1,0 +1,16 @@
+# Declarative configuration that the integration tests install at /etc/opentelemetry/nodejs/otel-config.yaml. Like the
+# file the Dash0 Node.js package ships, it takes the endpoint from OTEL_EXPORTER_OTLP_ENDPOINT. The fallback port has no
+# collector, so telemetry only arrives when the distribution sets OTEL_EXPORTER_OTLP_ENDPOINT from
+# DASH0_OTEL_COLLECTOR_BASE_URL.
+file_format: '1.0'
+resource:
+  attributes:
+    - name: service.name
+      value: default-config-file-test
+tracer_provider:
+  processors:
+    - batch:
+        schedule_delay: 20
+        exporter:
+          otlp_http:
+            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4319}/v1/traces

@@ -74,14 +74,20 @@ The base URL of the OpenTelemetry collector that the distribution will send data
 The distribution appends `/v1/traces`, `/v1/metrics` and `/v1/logs` to it.
 
 This variable is required unless a [declarative configuration file](#declarative-configuration) is used.
-If neither is set, the distribution does not start.
-When both are set, the configuration file takes precedence and `DASH0_OTEL_COLLECTOR_BASE_URL` is ignored.
+Without either, the distribution does not start.
+When both are set, the configuration file takes precedence, and `DASH0_OTEL_COLLECTOR_BASE_URL` sets the default for
+`OTEL_EXPORTER_OTLP_ENDPOINT`, without trailing slashes.
+A file that references `${OTEL_EXPORTER_OTLP_ENDPOINT}` then exports to that collector.
+An explicitly set `OTEL_EXPORTER_OTLP_ENDPOINT` takes precedence.
 
 ### <a id="declarative-configuration">Declarative configuration</a>
 
 Instead of environment variables, the OpenTelemetry SDK can be configured with an OpenTelemetry
 [declarative configuration file](https://opentelemetry.io/docs/languages/sdk-configuration/declarative-configuration/),
 by setting `OTEL_CONFIG_FILE` to its path.
+When `OTEL_CONFIG_FILE` is unset or empty and `/etc/opentelemetry/nodejs/otel-config.yaml` exists, the distribution
+uses that file instead.
+The distribution does not fall back to the default file when `OTEL_CONFIG_FILE` is set but names a missing file.
 The file then is the complete SDK configuration: it defines the exporters, endpoints, processors, sampling and the
 resource.
 As the specification requires, other `OTEL_*` environment variables are ignored unless the file references them via
@@ -117,8 +123,9 @@ logger_provider:
 ```
 
 Declarative configuration requires Node.js 18.19.0 or later, excluding 20.0.0 to 20.5.1.
-On older Node.js versions, the configuration file is ignored with a warning, and the distribution falls back to
+On older Node.js versions, the configuration file is ignored, and the distribution falls back to
 `DASH0_OTEL_COLLECTOR_BASE_URL`; if that is not set either, the distribution does not start.
+A warning is logged when the ignored file was set via `OTEL_CONFIG_FILE`, but not for the default file.
 
 If the file cannot be loaded, an error is logged and the application keeps running without telemetry.
 
