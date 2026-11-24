@@ -53,6 +53,19 @@ export function withConfigFileInEnv<T>(configFile: ConfigFile, fn: () => T, env:
   }
 }
 
+/**
+ * Sets OTEL_EXPORTER_OTLP_ENDPOINT to DASH0_OTEL_COLLECTOR_BASE_URL when only the base URL is set, so that a
+ * configuration file that references ${OTEL_EXPORTER_OTLP_ENDPOINT} exports to the collector. Drops trailing slashes,
+ * because files append the signal paths. Leaves the variable set for the life of the process.
+ */
+export function defaultOtlpEndpointFromCollectorBaseUrl(env: NodeJS.ProcessEnv = process.env): void {
+  const baseUrl = env.DASH0_OTEL_COLLECTOR_BASE_URL?.trim().replace(/\/+$/, '');
+  if (!baseUrl || env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim()) {
+    return;
+  }
+  env.OTEL_EXPORTER_OTLP_ENDPOINT = baseUrl;
+}
+
 export interface UnsupportedConfigFileOutcome {
   /** True when the distribution must not start, false when it falls back to environment variables. */
   prohibitive: boolean;

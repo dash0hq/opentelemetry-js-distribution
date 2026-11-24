@@ -25,7 +25,12 @@ import { installDeclarativeResourceDetectors, serviceNameDetectorName } from './
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
 import { createPropagator } from './propagator';
-import { ConfigFile, resolveConfigFile, withConfigFileInEnv } from '../util/configFile';
+import {
+  ConfigFile,
+  defaultOtlpEndpointFromCollectorBaseUrl,
+  resolveConfigFile,
+  withConfigFileInEnv,
+} from '../util/configFile';
 import { hasOptedIn, hasOptedOut, parseNumericEnvironmentVariableWithDefault } from '../util/environment';
 import { kafkaJsInstrumentation } from '../util/kafkajs';
 
@@ -102,11 +107,7 @@ function startSdkFromConfigFile(configFile: ConfigFile) {
   // than those the file references via ${...} substitution are ignored, as the specification requires. This also means
   // that DASH0_DEBUG_PRINT_SPANS does not apply, and that the Dash0 resource detectors and the telemetry.distro.*
   // attributes only apply if the file names them as detectors (see declarativeResourceDetectors.ts).
-  // Debug only: the OS packages derive DASH0_OTEL_COLLECTOR_BASE_URL from OTEL_EXPORTER_OTLP_ENDPOINT, so a warning
-  // would name a variable the user never set.
-  if (baseUrl) {
-    printDebugStdout(`Using configuration file ${configFile.path}, DASH0_OTEL_COLLECTOR_BASE_URL will be ignored.`);
-  }
+  defaultOtlpEndpointFromCollectorBaseUrl();
   printDebugStdout(`Starting OpenTelemetry SDK from configuration file ${configFile.path}.`);
   const installError = installDeclarativeResourceDetectors({
     dash0_distribution: { detect: () => ({ attributes: distroResource().attributes }) },

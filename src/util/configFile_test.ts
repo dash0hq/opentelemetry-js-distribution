@@ -3,7 +3,13 @@
 
 import { expect } from 'chai';
 
-import { defaultConfigFile, resolveConfigFile, unsupportedConfigFileOutcome, withConfigFileInEnv } from './configFile';
+import {
+  defaultConfigFile,
+  defaultOtlpEndpointFromCollectorBaseUrl,
+  resolveConfigFile,
+  unsupportedConfigFileOutcome,
+  withConfigFileInEnv,
+} from './configFile';
 
 describe('configuration file', () => {
   const defaultFileExists = (path: string) => path === defaultConfigFile;
@@ -75,6 +81,44 @@ describe('configuration file', () => {
       const seen = withConfigFileInEnv({ path: '/app/otel.yaml', explicit: true }, () => env.OTEL_CONFIG_FILE, env);
       expect(seen).to.equal('/app/otel.yaml');
       expect(env.OTEL_CONFIG_FILE).to.equal('/app/otel.yaml');
+    });
+  });
+
+  describe('defaultOtlpEndpointFromCollectorBaseUrl', () => {
+    it('sets OTEL_EXPORTER_OTLP_ENDPOINT to the collector base URL', () => {
+      const env: NodeJS.ProcessEnv = { DASH0_OTEL_COLLECTOR_BASE_URL: 'http://collector:4318' };
+      defaultOtlpEndpointFromCollectorBaseUrl(env);
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).to.equal('http://collector:4318');
+    });
+
+    it('drops trailing slashes from the collector base URL', () => {
+      const env: NodeJS.ProcessEnv = { DASH0_OTEL_COLLECTOR_BASE_URL: ' http://collector:4318// ' };
+      defaultOtlpEndpointFromCollectorBaseUrl(env);
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).to.equal('http://collector:4318');
+    });
+
+    it('keeps an explicit OTEL_EXPORTER_OTLP_ENDPOINT', () => {
+      const env: NodeJS.ProcessEnv = {
+        DASH0_OTEL_COLLECTOR_BASE_URL: 'http://collector:4318',
+        OTEL_EXPORTER_OTLP_ENDPOINT: 'http://explicit:4318',
+      };
+      defaultOtlpEndpointFromCollectorBaseUrl(env);
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).to.equal('http://explicit:4318');
+    });
+
+    it('replaces a blank OTEL_EXPORTER_OTLP_ENDPOINT', () => {
+      const env: NodeJS.ProcessEnv = {
+        DASH0_OTEL_COLLECTOR_BASE_URL: 'http://collector:4318',
+        OTEL_EXPORTER_OTLP_ENDPOINT: ' ',
+      };
+      defaultOtlpEndpointFromCollectorBaseUrl(env);
+      expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).to.equal('http://collector:4318');
+    });
+
+    it('does nothing without a collector base URL', () => {
+      const env: NodeJS.ProcessEnv = { DASH0_OTEL_COLLECTOR_BASE_URL: ' / ' };
+      defaultOtlpEndpointFromCollectorBaseUrl(env);
+      expect(env).to.not.have.property('OTEL_EXPORTER_OTLP_ENDPOINT');
     });
   });
 

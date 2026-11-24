@@ -75,7 +75,10 @@ The distribution appends `/v1/traces`, `/v1/metrics` and `/v1/logs` to it.
 
 This variable is required unless a [declarative configuration file](#declarative-configuration) is used.
 Without either, the distribution does not start.
-When both are set, the configuration file takes precedence and `DASH0_OTEL_COLLECTOR_BASE_URL` is ignored.
+When both are set, the configuration file takes precedence, and `DASH0_OTEL_COLLECTOR_BASE_URL` sets the default for
+`OTEL_EXPORTER_OTLP_ENDPOINT`, without trailing slashes.
+A file that references `${OTEL_EXPORTER_OTLP_ENDPOINT}` then exports to that collector.
+An explicitly set `OTEL_EXPORTER_OTLP_ENDPOINT` takes precedence.
 
 ### <a id="declarative-configuration">Declarative configuration</a>
 
