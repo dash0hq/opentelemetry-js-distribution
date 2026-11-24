@@ -6,6 +6,7 @@ import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetr
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { AWSXRayPropagator } from '@opentelemetry/propagator-aws-xray';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import {
   ResourceDetector,
@@ -21,6 +22,7 @@ import { NodeSDK, NodeSDKConfiguration, startNodeSDK } from '@opentelemetry/sdk-
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 
+import { installDeclarativePropagators } from './declarativePropagators';
 import { installDeclarativeResourceDetectors, serviceNameDetectorName } from './declarativeResourceDetectors';
 import PodUidDetector from './detectors/node/opentelemetry-resource-detector-kubernetes-pod';
 import ServiceNameFallbackDetector from './detectors/node/opentelemetry-resource-detector-service-name-fallback';
@@ -116,6 +118,13 @@ function startSdkFromConfigFile() {
     console.error(
       logPrefix,
       `Cannot register the Dash0 resource detectors for configuration files (${installError}). A configuration file that names dash0_distribution, dash0_kubernetes or dash0_service_name as a resource detector will fail to load.`,
+    );
+  }
+  const propagatorInstallError = installDeclarativePropagators({ xray: () => new AWSXRayPropagator() });
+  if (propagatorInstallError) {
+    console.error(
+      logPrefix,
+      `Cannot register the xray propagator for configuration files (${propagatorInstallError}). A configuration file that names xray as a propagator will fail to load.`,
     );
   }
   // startNodeSDK does not throw on an invalid or missing file, it logs the problem via diag and returns a no-op SDK.

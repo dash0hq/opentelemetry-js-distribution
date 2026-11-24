@@ -19,9 +19,9 @@
 // This depends on sdk-node internals, which is why @opentelemetry/sdk-node is pinned to an exact version, and why the
 // integration tests cover a configuration file that names these detectors.
 
-import path from 'node:path';
-
 import { detectResources, Resource, ResourceDetector, resourceFromAttributes } from '@opentelemetry/resources';
+
+import { patchCreateFromConfigExport } from './sdkNodeCreateFromConfig';
 
 export const serviceNameDetectorName = 'dash0_service_name';
 
@@ -101,46 +101,11 @@ function hasDefaultServiceName(resource: Resource): boolean {
 }
 
 /**
- * Locates sdk-node's create-from-config module and replaces its createResourceFromConfig export with the wrapped
- * version. startNodeSDK looks the function up on that module at call time, so this has to happen before startNodeSDK
- * is called.
- *
- * The module is resolved relative to the package entry point rather than by a deep import specifier: the tsc build
- * (sdk-node <= 0.222) has it at build/src/create-from-config.js, the tsdown build that replaces it at
- * dist/create-from-config.cjs, and the latter's package.json exports map rejects deep imports, but not absolute paths.
- *
- * Returns an error message if the module or the function could not be found, or if the function does not take the
- * resource configuration as its only parameter, in which case nothing is patched.
+ * Patches sdk-node so that the given detectors can be named in a configuration file. Returns an error message if
+ * sdk-node does not have the expected shape, in which case nothing is patched.
  */
 export function installDeclarativeResourceDetectors(detectors: Record<string, ResourceDetector>): string | undefined {
-  let entryPoint: string;
-  try {
-    entryPoint = require.resolve('@opentelemetry/sdk-node');
-  } catch (e) {
-    return `cannot resolve @opentelemetry/sdk-node: ${e}`;
-  }
-  const directory = path.dirname(entryPoint);
-  const candidates = ['create-from-config.js', 'create-from-config.cjs'].map(file => path.join(directory, file));
-  const loadErrors: string[] = [];
-  for (const candidate of candidates) {
-    let module: any;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      module = require(candidate);
-    } catch (e) {
-      loadErrors.push(`${candidate}: ${e}`);
-      continue;
-    }
-    if (typeof module?.createResourceFromConfig !== 'function') {
-      return `${candidate} does not export a createResourceFromConfig function`;
-    }
-    // Newer sdk-node versions take a component registry first. Wrapping one of those would hand the registry to the
-    // wrapper as the resource configuration and silently drop the file's resource section.
-    if (module.createResourceFromConfig.length !== 1) {
-      return `${candidate} exports a createResourceFromConfig that takes ${module.createResourceFromConfig.length} parameters, expected the resource configuration only`;
-    }
-    module.createResourceFromConfig = wrapCreateResourceFromConfig(module.createResourceFromConfig, detectors);
-    return undefined;
-  }
-  return `none of the candidate modules could be loaded (${loadErrors.join('; ')})`;
+  return patchCreateFromConfigExport<CreateResourceFromConfig>('createResourceFromConfig', original =>
+    wrapCreateResourceFromConfig(original, detectors),
+  );
 }

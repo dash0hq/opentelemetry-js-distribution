@@ -147,6 +147,21 @@ resource:
 
 Attributes set in the file take precedence over those from these detectors.
 
+In addition to the propagators the OpenTelemetry SDK supports, the file can name `xray`, in `composite` or in
+`composite_list`.
+Unlike in `OTEL_PROPAGATORS`, `xray-lambda` and `ottrace` are not supported in a file; naming them makes the file fail
+to load.
+Propagators are applied in the order the file lists them, so the following matches the distribution's default without a
+configuration file (see [OTEL_PROPAGATORS](#OTEL_PROPAGATORS)):
+
+```yaml
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+    - xray:
+```
+
 Because the file defines the whole SDK, the following do not apply when a configuration file is used:
 * [DASH0_AUTOMATIC_SERVICE_NAME](#DASH0_AUTOMATIC_SERVICE_NAME): use the `dash0_service_name` detector, or set
   `service.name` in the file.

@@ -262,6 +262,41 @@ describe('attach', () => {
       });
     });
 
+    describe('configuration file naming xray', () => {
+      let appUnderTest: ChildProcessWrapper;
+
+      before(async () => {
+        const appConfiguration = defaultAppConfiguration(appPort);
+        delete appConfiguration.env!.DASH0_OTEL_COLLECTOR_BASE_URL;
+        delete appConfiguration.env!.OTEL_PROPAGATORS;
+        appConfiguration.env!.OTEL_CONFIG_FILE = path.join(__dirname, 'otel-config-xray.yaml');
+        appConfiguration.env!.TEST_COLLECTOR_BASE_URL = 'http://localhost:4318';
+        appUnderTest = new ChildProcessWrapper(appConfiguration);
+        await appUnderTest.start();
+      });
+
+      after(async () => {
+        await appUnderTest.stop();
+      });
+
+      it('should continue the trace from X-Amzn-Trace-Id when traceparent is also present', async () => {
+        await waitUntil(async () => {
+          await sendHttpRequestAndVerifyResponse(headers);
+          expectServerSpanWithParent(await collector().fetchTraces(), xrayTraceId, xraySpanId);
+        });
+      });
+
+      it('should continue the trace from traceparent when X-Amzn-Trace-Id has no parent', async () => {
+        await waitUntil(async () => {
+          await sendHttpRequestAndVerifyResponse({
+            traceparent: headers.traceparent,
+            'x-amzn-trace-id': 'Root=1-5759e988-bd862e3fe1be46a994272793',
+          });
+          expectServerSpanWithParent(await collector().fetchTraces(), traceparentTraceId, traceparentSpanId);
+        });
+      });
+    });
+
     function expectServerSpanWithParent(traces: ExportTraceServiceRequest[], traceId: string, parentSpanId: string) {
       expectMatchingSpan(
         traces,
