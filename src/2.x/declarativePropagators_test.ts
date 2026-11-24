@@ -117,8 +117,14 @@ describe('declarative propagators', () => {
   });
 
   describe('installation', () => {
+    let originalDescriptor: PropertyDescriptor;
+
+    before(() => {
+      originalDescriptor = Object.getOwnPropertyDescriptor(createFromConfigModule, 'createPropagatorFromConfig')!;
+    });
+
     afterEach(() => {
-      createFromConfigModule.createPropagatorFromConfig = original;
+      Object.defineProperty(createFromConfigModule, 'createPropagatorFromConfig', originalDescriptor);
     });
 
     it('patches sdk-node', () => {
@@ -134,6 +140,16 @@ describe('declarative propagators', () => {
       createFromConfigModule.createPropagatorFromConfig = withRegistry;
       expect(installDeclarativePropagators(propagators)).to.match(/takes 2 parameters/);
       expect(createFromConfigModule.createPropagatorFromConfig).to.equal(withRegistry);
+    });
+
+    it('does not throw if the export is getter-only', () => {
+      Object.defineProperty(createFromConfigModule, 'createPropagatorFromConfig', {
+        configurable: true,
+        enumerable: true,
+        get: () => original,
+      });
+      expect(installDeclarativePropagators(propagators)).to.match(/cannot replace createPropagatorFromConfig/);
+      expect(createFromConfigModule.createPropagatorFromConfig).to.equal(original);
     });
   });
 });

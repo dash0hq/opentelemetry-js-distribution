@@ -149,6 +149,8 @@ Attributes set in the file take precedence over those from these detectors.
 
 In addition to the propagators the OpenTelemetry SDK supports, the file can name `xray`, in `composite` or in
 `composite_list`.
+Unlike in `OTEL_PROPAGATORS`, `xray-lambda` and `ottrace` are not supported in a file; naming them makes the file fail
+to load.
 Propagators are applied in the order the file lists them, so the following matches the distribution's default without a
 configuration file (see [OTEL_PROPAGATORS](#OTEL_PROPAGATORS)):
 

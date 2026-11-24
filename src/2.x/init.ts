@@ -6,6 +6,7 @@ import { getNodeAutoInstrumentations, getResourceDetectors } from '@opentelemetr
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { AWSXRayPropagator } from '@opentelemetry/propagator-aws-xray';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import {
   ResourceDetector,
@@ -17,7 +18,6 @@ import {
 } from '@opentelemetry/resources';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
-import { AWSXRayPropagator } from '@opentelemetry/propagator-aws-xray';
 import { NodeSDK, NodeSDKConfiguration, startNodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';

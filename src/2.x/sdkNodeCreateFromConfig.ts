@@ -45,7 +45,16 @@ export function patchCreateFromConfigExport<F extends (...args: any[]) => any>(
     if (original.length !== 1) {
       return `${candidate} exports a ${exportName} that takes ${original.length} parameters, expected the configuration section only`;
     }
-    module[exportName] = wrap(original);
+    const wrapped = wrap(original);
+    try {
+      module[exportName] = wrapped;
+    } catch (e) {
+      // e.g. a getter-only export, which throws in strict mode.
+      return `cannot replace ${exportName} in ${candidate}: ${e}`;
+    }
+    if (module[exportName] !== wrapped) {
+      return `cannot replace ${exportName} in ${candidate}, the export is read-only`;
+    }
     return undefined;
   }
   return `none of the candidate modules could be loaded (${loadErrors.join('; ')})`;
